@@ -109,6 +109,18 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 		wc.hInstance,          // インスタンスハンドル
 		nullptr);	           // オプション
 
+	// デバッグレイヤー
+#ifdef _DEBUG
+	ID3D12Debug1* debugController = nullptr;
+	if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController))))
+	{
+		// デバッグレイヤーを有効化する
+		debugController->EnableDebugLayer();
+		// さらにGPU側でもチェックを行うようにする
+		debugController->SetEnableGPUBasedValidation(TRUE);
+	}
+#endif // _DEBUG
+
 	MSG msg{};
 
 	// DXGIファクトリーの生成
@@ -165,6 +177,38 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 	// デバイスの生成がうまくいかなかったので起動できない
 	assert(device != nullptr);
 	Log("Complete create D3D12Device!!!\n");// 初期化完了のログをだす
+
+	// エラーが出た際にプログラムを停止させる
+#ifdef _DEBUG
+	ID3D12InfoQueue* infoQueue = nullptr;if (SUCCEEDED(device->QueryInterface(IID_PPV_ARGS(&infoQueue))))
+	{
+		// ヤバイエラー時に止まる
+		infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, true);
+		// エラー時に止まる
+		infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, true);
+		// 警告時に止まる
+		infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_WARNING, true);
+		// 解放
+		infoQueue->Release();
+
+		// 抑制するメッセージのID
+		D3D12_MESSAGE_ID denyIds[] = {
+			// Windows11でのDXGIデバッグレイヤーとDX12デバッグレイヤーの描画作用バグによるエラーメッセージ
+			// https://stackoverflow.com/questions/69805245/directx-12-application-is-crashing-in-windows-11
+			D3D12_MESSAGE_ID_RESOURCE_BARRIER_MISMATCHING_COMMAND_LIST_TYPE
+		};
+		// 抑制するレベル
+		D3D12_MESSAGE_SEVERITY severities[] = { D3D12_MESSAGE_SEVERITY_INFO };
+		D3D12_INFO_QUEUE_FILTER filter{};
+		filter.DenyList.NumIDs = _countof(denyIds);
+		filter.DenyList.pIDList = denyIds;
+		filter.DenyList.NumSeverities = _countof(severities);
+		filter.DenyList.pSeverityList = severities;
+		// 指定したメッセージの表示を抑制する
+		infoQueue->PushStorageFilter(&filter);
+	}
+#endif // _DEBUG
+
 
 	// コマンドキューを生成する
 	ID3D12CommandQueue* commandQueue = nullptr;
