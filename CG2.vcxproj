@@ -91,6 +91,7 @@ copy "$(windowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="MathUtility.cpp" />
     <ClCompile Include="StringUtility.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -108,7 +109,11 @@ copy "$(windowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="MathUtility.h" />
+    <ClInclude Include="Matrix4x4.h" />
     <ClInclude Include="StringUtility.h" />
+    <ClInclude Include="Transform.h" />
+    <ClInclude Include="Vector3.h" />
     <ClInclude Include="Vector4.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

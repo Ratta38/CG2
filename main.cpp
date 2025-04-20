@@ -1,4 +1,3 @@
-// #include <Windows.h>
 #include "StringUtility.h"
 #include "Vector4.h"
 #include <cassert>
@@ -7,6 +6,8 @@
 #include <dxgi1_6.h>
 #include <format>
 #include <string>
+#include "MathUtility.h"
+#include "Transform.h"
 #pragma comment(lib, "d3d12.lib")
 #pragma comment(lib, "dxgi.lib")
 #include <dxgidebug.h>
@@ -312,30 +313,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	// 2つ目を作る
 	device->CreateRenderTargetView(swapChainResources[1], &rtvDesc, rtvHandles[1]);
 
-	// これから書き込むバックバッファのインデックスを取得
-	UINT backBufferIndex = swapChain->GetCurrentBackBufferIndex();
-
-	// TransitionBarrierの設定
-	D3D12_RESOURCE_BARRIER barrier{};
-	// 今回のバリアはTransition
-	barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-	// Noneにしておく
-	barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-	// バリアを張る対象のリソース。現在のバックバッファに対して行う
-	barrier.Transition.pResource = swapChainResources[backBufferIndex];
-	// 遷移前(現在)のResourceState
-	barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
-	// 遷移後のResourceState
-	barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
-	// TransitionBarrierを張る
-	commandList->ResourceBarrier(1, &barrier);
-
-	// 描画先のRTVを設定する
-	commandList->OMSetRenderTargets(1, &rtvHandles[backBufferIndex], false, nullptr);
-	// 設定した色で画面全体をクリアする
-	float clearColor[] = {0.1f, 0.25f, 0.5f, 1.0f}; // 青っぽい色。RGBAの順
-	commandList->ClearRenderTargetView(rtvHandles[backBufferIndex], clearColor, 0, nullptr);
-
 	// dxcCompilerを初期化
 	IDxcUtils* dxcUtils = nullptr;
 	IDxcCompiler3* dxcCompiler = nullptr;
@@ -354,10 +331,13 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	descriptionRootSignature.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
 
 	// RootParameter作成。複数設定できるので配列。今回は結果1つだけなので長さ1の配列
-	D3D12_ROOT_PARAMETER rootParameters[1] = {};
+	D3D12_ROOT_PARAMETER rootParameters[2] = {};
 	rootParameters[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;    // CBVを使う
 	rootParameters[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL; // PixelShaderで使う
 	rootParameters[0].Descriptor.ShaderRegister = 0;                    // レジスタ番号0とバインド
+	rootParameters[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;    // CBVを使う 
+	rootParameters[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;// VertexShaderで使う
+	rootParameters[1].Descriptor.ShaderRegister = 0;                    // レジスタ番号0を使う
 	descriptionRootSignature.pParameters = rootParameters;              // ルートパラメータ配列へのポインタ
 	descriptionRootSignature.NumParameters = _countof(rootParameters);  // 配列の長さ
 
@@ -424,28 +404,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	hr = device->CreateGraphicsPipelineState(&graphicsPipelineStateDesc, IID_PPV_ARGS(&graphicsPipelineState));
 	assert(SUCCEEDED(hr));
 
-	//// 関数化 ////
-
-	//// 頂点リソース用のヒープの設定
-	// D3D12_HEAP_PROPERTIES uploadHeapProperties{};
-	// uploadHeapProperties.Type = D3D12_HEAP_TYPE_UPLOAD; // uploadHeapを使う
-	//// 頂点にリソースの設定
-	// D3D12_RESOURCE_DESC vertexResourceDesc{};
-	//// バッファリソース。テクスチャの場合はまた別の設定をする
-	// vertexResourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
-	// vertexResourceDesc.Width = sizeof(Vector4) * 3; // リソースのサイズ。今回はVector4を3頂点分
-	//// バッファの場合はこれらは1にする決まり
-	// vertexResourceDesc.Height = 1;
-	// vertexResourceDesc.DepthOrArraySize = 1;
-	// vertexResourceDesc.MipLevels = 1;
-	// vertexResourceDesc.SampleDesc.Count = 1;
-	//// バッファの場合はこれにする決まり
-	// vertexResourceDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
-	//// 実際に頂点リソースを作る
-	// ID3D12Resource* vertexResource = nullptr;
-	// hr = device->CreateCommittedResource(&uploadHeapProperties, D3D12_HEAP_FLAG_NONE, &vertexResourceDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&vertexResource));
-	// assert(SUCCEEDED(hr));
-
 	ID3D12Resource* vertexResource = CreateBufferResource(device, sizeof(Vector4) * 3);
 
 	// 頂点バッファビューを作成する
@@ -477,6 +435,15 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	// 今回は赤を書き込んでみる
 	*materialDate = Vector4(1.0f, 0.0f, 0.0f, 1.0f);
 
+	// WVP用のリソースを作る。Matrix4x4 1つ分のサイズを用意する
+	ID3D12Resource* wvpResource = CreateBufferResource(device, sizeof(Matrix4x4));
+	// データを書き込む
+	Matrix4x4* transformMatrixDate = nullptr;
+	// 書き込むためのアドレスを取得
+	wvpResource->Map(0, nullptr, reinterpret_cast<void**>(&transformMatrixDate));
+	// 単位行列を書き込んでおく
+	*transformMatrixDate = MathUtility::MakeIdentity4x4();
+
 	// ビューポート
 	D3D12_VIEWPORT viewport{};
 	// クライアント領域のサイズと一緒にして画面全体に表示
@@ -495,36 +462,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	scissorRect.top = 0;
 	scissorRect.bottom = kClientHeight;
 
-	commandList->RSSetViewports(1, &viewport);       // Viewportを設定
-	commandList->RSSetScissorRects(1, &scissorRect); // Scissorを設定
-	// RootSignatureを設定。PSOに設定しているけど別途設定が必要
-	commandList->SetGraphicsRootSignature(rootSignature);
-	commandList->SetPipelineState(graphicsPipelineState);     // PSOを設定
-	commandList->IASetVertexBuffers(0, 1, &vertexBufferView); // VBVを設定
-	// 形状を設定。PSOに設定しているものとはまた別。同じものを設定すると考えておけば良い
-	commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-	// マテリアルCBufferの場所を設定
-	commandList->SetGraphicsRootConstantBufferView(0, materialResource->GetGPUVirtualAddress());
-	// 描画!(DrawCall/ドローコール)。3頂点で1つのインスタンス。インスタンスについては今後
-	commandList->DrawInstanced(3, 1, 0, 0);
-
-	// 画面に描く処理はすべて終わり、画面に写すので、状態を遷移
-	// 今回はRenderTargetからPresentにする
-	barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
-	barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
-	// TransitionBarrierを張る
-	commandList->ResourceBarrier(1, &barrier);
-
-	// コマンドリストの内容を確定させる。すべてのコマンドを積んでからCloseすること
-	hr = commandList->Close();
-	assert(SUCCEEDED(hr));
-
-	// GPUにコマンドリストの実行を行わせる
-	ID3D12CommandList* commandLists[] = {commandList};
-	commandQueue->ExecuteCommandLists(1, commandLists);
-	// GPUとOSに画面の交換を行うように通知する
-	swapChain->Present(1, 0);
-
 	// 初期値0でFenceを作る
 	ID3D12Fence* fence = nullptr;
 	uint64_t fenceValue = 0;
@@ -535,25 +472,17 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	HANDLE fenceEvent = CreateEvent(NULL, FALSE, FALSE, NULL);
 	assert(fenceEvent != nullptr);
 
-	// Fenceの値を更新
-	fenceValue++;
-	// GPUがここまでたどり着いたときに、Fenceの値を指定した値に代入するようにSignalを送る
-	commandQueue->Signal(fence, fenceValue);
+	Transform transform{
+	    {1.0f, 1.0f, 1.0f},
+        {0.0f, 0.0f, 0.0f},
+        {0.0f, 0.0f, 0.0f}
+    };
 
-	// Fenceの値が指定したSignal値にたどり着いているか確認する
-	// GetCompleteValueの初期値はFence作成時に渡した初期値
-	if (fence->GetCompletedValue() < fenceValue) {
-		// 指定したSignalにたどりついていないので、たどり着くまで待つようにイベントを設定する
-		fence->SetEventOnCompletion(fenceValue, fenceEvent);
-		// イベントを待つ
-		WaitForSingleObject(fenceEvent, INFINITE);
-	}
-
-	// 次のフレーム用のコマンドリストを準備
-	hr = commandAllocator->Reset();
-	assert(SUCCEEDED(hr));
-	hr = commandList->Reset(commandAllocator, nullptr);
-	assert(SUCCEEDED(hr));
+	Transform cameraTransform{
+	    {1.0f, 1.0f, 1.0f },
+        {0.0f, 0.0f, 0.0f },
+        {0.0f, 0.0f, -5.0f}
+    };
 
 	// ウィンドウのxボタンが押されるまでループ
 	while (msg.message != WM_QUIT) {
@@ -563,12 +492,94 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			DispatchMessage(&msg);
 		} else {
 			// ゲームの処理
+			transform.rotate.y += 0.03f;
+			Matrix4x4 worldMatrix = MathUtility::MakeAffineMatrix(transform.scale, transform.rotate, transform.translate);
+			Matrix4x4 cameraMatrix = MathUtility::MakeAffineMatrix(cameraTransform.scale, cameraTransform.rotate, cameraTransform.translate);
+			Matrix4x4 viewMatrix = MathUtility::Inverse(cameraMatrix);
+			Matrix4x4 projectionMatrix = MathUtility::MakePerspectiveFovMatrix(0.45f, static_cast<float>(kClientWidth) / static_cast<float>(kClientHeight), 0.1f, 100.0f);
+			Matrix4x4 worldViewProjectionMatrix = MathUtility::Multiply(worldMatrix, MathUtility::Multiply(viewMatrix, projectionMatrix));
+			*transformMatrixDate = worldViewProjectionMatrix;
+
+			// これから書き込むバックバッファのインデックスを取得
+			UINT backBufferIndex = swapChain->GetCurrentBackBufferIndex();
+
+			// TransitionBarrierの設定
+			D3D12_RESOURCE_BARRIER barrier{};
+			// 今回のバリアはTransition
+			barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+			// Noneにしておく
+			barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+			// バリアを張る対象のリソース。現在のバックバッファに対して行う
+			barrier.Transition.pResource = swapChainResources[backBufferIndex];
+			// 遷移前(現在)のResourceState
+			barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
+			// 遷移後のResourceState
+			barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
+			// TransitionBarrierを張る
+			commandList->ResourceBarrier(1, &barrier);
+
+			// 描画先のRTVを設定する
+			commandList->OMSetRenderTargets(1, &rtvHandles[backBufferIndex], false, nullptr);
+			// 指定した色で画面全体をクリアする
+			float clearColor[] = {0.1f, 0.25f, 0.5f, 1.0f}; // 青っぽい色。RGBAの順
+			commandList->ClearRenderTargetView(rtvHandles[backBufferIndex], clearColor, 0, nullptr);
+
+			commandList->RSSetViewports(1, &viewport);       // Viewportを設定
+			commandList->RSSetScissorRects(1, &scissorRect); // Scissorを設定
+			// RootSignatureを設定。PSOに設定しているけど別途設定が必要
+			commandList->SetGraphicsRootSignature(rootSignature);
+			commandList->SetPipelineState(graphicsPipelineState);     // PSOを設定
+			commandList->IASetVertexBuffers(0, 1, &vertexBufferView); // VBVを設定
+			// 形状を設定。PSOに設定しているものとはまた別。同じものを設定すると考えておけば良い
+			commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+			// マテリアルCBufferの場所を設定
+			commandList->SetGraphicsRootConstantBufferView(0, materialResource->GetGPUVirtualAddress());
+			// wvp用のBufferの場所を設定
+			commandList->SetGraphicsRootConstantBufferView(1, wvpResource->GetGPUVirtualAddress());
+			// 描画!(DrawCall/ドローコール)。3頂点で1つのインスタンス。インスタンスについては今後
+			commandList->DrawInstanced(3, 1, 0, 0);
+
+			// 画面に描く処理はすべて終わり、画面に写すので、状態を遷移
+			// 今回はRenderTargetからPresentにする
+			barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
+			barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
+			// TransitionBarrierを張る
+			commandList->ResourceBarrier(1, &barrier);
+
+			// コマンドリストの内容を確定させる。すべてのコマンドを積んでからCloseすること
+			hr = commandList->Close();
+			assert(SUCCEEDED(hr));
+
+			// GPUにコマンドリストの実行を行わせる
+			ID3D12CommandList* commandLists[] = {commandList};
+			commandQueue->ExecuteCommandLists(1, commandLists);
+			// GPUとOSに画面の交換を行うように通知する
+			swapChain->Present(1, 0);
+
+			// Fenceの値を更新
+			fenceValue++;
+			// GPUがここまでたどり着いたときに、Fenceの値を指定した値に代入するようにSignalを送る
+			commandQueue->Signal(fence, fenceValue);
+
+			// Fenceの値が指定したSignal値にたどり着いているか確認する
+			// GetCompleteValueの初期値はFence作成時に渡した初期値
+			if (fence->GetCompletedValue() < fenceValue) {
+				// 指定したSignalにたどりついていないので、たどり着くまで待つようにイベントを設定する
+				fence->SetEventOnCompletion(fenceValue, fenceEvent);
+				// イベントを待つ
+				WaitForSingleObject(fenceEvent, INFINITE);
+			}
+
+			// 次のフレーム用のコマンドリストを準備
+			hr = commandAllocator->Reset();
+			assert(SUCCEEDED(hr));
+			hr = commandList->Reset(commandAllocator, nullptr);
+			assert(SUCCEEDED(hr));
+
 			// ウィンドウを表示する
 			ShowWindow(hwnd, SW_SHOW);
 		}
 	}
-
-	// OutputDebugStringA("Hello,DirectX!\n");
 
 	CloseHandle(fenceEvent);
 	fence->Release();
@@ -584,6 +595,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	dxgiFactory->Release();
 	vertexResource->Release();
 	materialResource->Release();
+	wvpResource->Release();
 	graphicsPipelineState->Release();
 	signatureBlob->Release();
 	if (errorBlob) {
