@@ -6,6 +6,7 @@
 #include "WinApp.h"
 #include "D3DResourceLeakChecker.h"
 #include <memory>
+#include "SphereMeshGenerator.h"
 #pragma comment(lib, "d3d12.lib")
 #pragma comment(lib, "dxgi.lib")
 #include <dxgidebug.h>
@@ -35,16 +36,15 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	imGuiManager_->Initialize(
 	    dxCommon->GetWinApp()->GetHWND(), dxCommon->GetDevice(), dxCommon->GetSwapChainDescBufferCount(), dxCommon->GetRtvFormat(), dxCommon->GetSrvDescriptorHeap().Get());
 
+	SphereMeshGenerator sphereMesh(16);
+
 	// Model
 	auto model = std::make_shared<Model>();
-	model->Initialize(dxCommon->GetDevice());
+	model->Initialize(dxCommon->GetDevice(), sphereMesh);
 
 	// Sprite
 	auto sprite = std::make_shared<Sprite>();
 	sprite->Initialize(dxCommon->GetDevice());
-
-	// Sphere
-	auto sphere = std::make_shared<Sphere>();
 
 	// ウィンドウのxボタンが押されるまでループ
 	while (dxCommon->GetWinApp()->ProcessMessage()) {
@@ -70,9 +70,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 		// 球描画
 		model->Draw(dxCommon->GetCommandList());
-
-		
-		//sphere->Draw(dxCommon->GetCommandList());
 
 		// スプライト描画
 		sprite->Draw(dxCommon->GetCommandList());

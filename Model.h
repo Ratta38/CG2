@@ -2,15 +2,14 @@
 #include "Matrix4x4.h"
 #include "Transform.h"
 #include "Vector4.h"
-#include "Sphere.h"
 #include <d3d12.h>
 #include <wrl.h>
 #include <memory>
-#include "Sphere.h"
+#include "SphereMeshGenerator.h"
 class Model {
 public:
 	~Model();
-	void Initialize(Microsoft::WRL::ComPtr<ID3D12Device> device);
+	void Initialize(Microsoft::WRL::ComPtr<ID3D12Device> device, const IMeshGenerator& meshGen);
 	void Update();
 	void Draw(Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList> commandList);
 	Vector4& GetColor() { return color_; }
@@ -41,4 +40,7 @@ private:
 	Microsoft::WRL::ComPtr<ID3D12RootSignature> rootSignature_;
 	Microsoft::WRL::ComPtr<ID3D12PipelineState> pipelineState_;
 	D3D12_GPU_DESCRIPTOR_HANDLE srvHandle_;
+
+	// 描画用に頂点数を取得
+	uint32_t vertexCount_ = 0;
 };

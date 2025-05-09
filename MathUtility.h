@@ -1,6 +1,7 @@
 #pragma once
 #include "Matrix4x4.h"
 #include "Vector3.h"
+#include <numbers>
 
 class MathUtility {
 public:
@@ -157,4 +158,7 @@ public:
 	/// <param name="maxD">最大深度値</param>
 	/// <returns>スクリーン座標系</returns>
 	static Matrix4x4 MakeViewPortMatrix(float left, float top, float width, float height, float minD, float maxD);
+
+public:
+	static constexpr float pi_ = static_cast<float>(std::numbers::pi);
 };

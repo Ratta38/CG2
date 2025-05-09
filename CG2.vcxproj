@@ -103,7 +103,7 @@ copy "$(windowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="main.cpp" />
     <ClCompile Include="MathUtility.cpp" />
     <ClCompile Include="Model.cpp" />
-    <ClCompile Include="Sphere.cpp" />
+    <ClCompile Include="SphereMeshGenerator.cpp" />
     <ClCompile Include="Sprite.cpp" />
     <ClCompile Include="StringUtility.cpp" />
     <ClCompile Include="TextureManager.cpp" />
@@ -134,11 +134,12 @@ copy "$(windowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="externals\imgui\imstb_rectpack.h" />
     <ClInclude Include="externals\imgui\imstb_textedit.h" />
     <ClInclude Include="externals\imgui\imstb_truetype.h" />
+    <ClInclude Include="IMeshGenerator.h" />
     <ClInclude Include="ImGuiManager.h" />
     <ClInclude Include="MathUtility.h" />
     <ClInclude Include="Matrix4x4.h" />
     <ClInclude Include="Model.h" />
-    <ClInclude Include="Sphere.h" />
+    <ClInclude Include="SphereMeshGenerator.h" />
     <ClInclude Include="Sprite.h" />
     <ClInclude Include="StringUtility.h" />
     <ClInclude Include="TextureManager.h" />

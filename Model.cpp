@@ -6,8 +6,7 @@
 
 using namespace Microsoft::WRL;
 
-Model::~Model() {
-}
+Model::~Model() {}
 
 void Model::SetRootSignature(ComPtr<ID3D12RootSignature> rs) { rootSignature_ = rs; }
 
@@ -15,38 +14,23 @@ void Model::SetPipelineState(ComPtr<ID3D12PipelineState> pso) { pipelineState_ =
 
 void Model::SetTextureHandle(D3D12_GPU_DESCRIPTOR_HANDLE handle) { srvHandle_ = handle; }
 
-void Model::Initialize(ComPtr<ID3D12Device> device) {
+void Model::Initialize(ComPtr<ID3D12Device> device, const IMeshGenerator& meshGen) {
+	std::vector<VertexData> vertices = meshGen.GenerateVertices();
+	vertexCount_ = static_cast<uint32_t>(vertices.size());
 	// 頂点リソースの作成
-	vertexResource_ = CreateBufferResource(device, sizeof(VertexData) * 6);
+	vertexResource_ = CreateBufferResource(device, sizeof(VertexData) * vertices.size());
 	// リソースの先頭のアドレスから使う
 	vertexBufferView_.BufferLocation = vertexResource_->GetGPUVirtualAddress();
 	// 使用するリソースのサイズは頂点6つ分のサイズ
-	vertexBufferView_.SizeInBytes = sizeof(VertexData) * 6;
+	vertexBufferView_.SizeInBytes = static_cast<UINT>(sizeof(VertexData) * vertices.size());
 	// 1頂点あたりのサイズ
 	vertexBufferView_.StrideInBytes = sizeof(VertexData);
 	// 頂点リソースにデータを書き込む
-	VertexData* vertexData = {};
+	VertexData* vertexData = nullptr;
 	// 書き込むためのアドレスを取得
 	vertexResource_->Map(0, nullptr, reinterpret_cast<void**>(&vertexData));
-	// 左下
-	vertexData[0].position = {-0.5f, -0.5f, 0.0f, 1.0f};
-	vertexData[0].texcoord = {0.0f, 1.0f};
-	// 上
-	vertexData[1].position = {0.0f, 0.5f, 0.0f, 1.0f};
-	vertexData[1].texcoord = {0.5f, 0.0f};
-	// 右下
-	vertexData[2].position = {0.5f, -0.5f, 0.0f, 1.0f};
-	vertexData[2].texcoord = {1.0f, 1.0f};
-
-	// 左下2
-	vertexData[3].position = {-0.5f, -0.5f, 0.5f, 1.0f};
-	vertexData[3].texcoord = {0.0f, 1.0f};
-	// 上2
-	vertexData[4].position = {0.0f, 0.0f, 0.0f, 1.0f};
-	vertexData[4].texcoord = {0.5f, 0.0f};
-	// 右下2
-	vertexData[5].position = {0.5f, -0.5f, -0.5f, 1.0f};
-	vertexData[5].texcoord = {1.0f, 1.0f};
+	std::memcpy(vertexData, vertices.data(), sizeof(VertexData) * vertices.size());
+	vertexResource_->Unmap(0, nullptr);
 
 	// マテリアル用のリソースを作る。今回はcolor1つ分のサイズを用意する
 	materialResource_ = CreateBufferResource(device, sizeof(Vector4));
@@ -77,7 +61,7 @@ void Model::Initialize(ComPtr<ID3D12Device> device) {
 	cameraTransform_ = {
 	    {1.0f, 1.0f, 1.0f },
         {0.0f, 0.0f, 0.0f },
-        {0.0f, 0.0f, -5.0f}
+        {0.0f, 0.0f, -10.0f}
     };
 	wvpResource_->Unmap(0, nullptr);
 	materialResource_->Unmap(0, nullptr);
@@ -98,7 +82,7 @@ void Model::Update() {
 void Model::Draw(ComPtr<ID3D12GraphicsCommandList> commandList) {
 	// RootSignatureを設定。PSOに設定しているけど別途設定が必要
 	commandList->SetGraphicsRootSignature(rootSignature_.Get());
-	commandList->SetPipelineState(pipelineState_.Get());             // PSOを設定
+	commandList->SetPipelineState(pipelineState_.Get());       // PSOを設定
 	commandList->IASetVertexBuffers(0, 1, &vertexBufferView_); // VBVを設定
 	// 形状を設定。PSOに設定しているものとはまた別。同じものを設定すると考えておけば良い
 	commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -109,7 +93,7 @@ void Model::Draw(ComPtr<ID3D12GraphicsCommandList> commandList) {
 	// SRVのDescriptorTableの先頭を設定。2はrootParameter[2]である。
 	commandList->SetGraphicsRootDescriptorTable(2, srvHandle_);
 	// 描画!(DrawCall/ドローコール)。6頂点で1つのインスタンス。インスタンスについては今後
-	commandList->DrawInstanced(6, 1, 0, 0);
+	commandList->DrawInstanced(vertexCount_, 1, 0, 0);
 }
 
 ComPtr<ID3D12Resource> Model::CreateBufferResource(ComPtr<ID3D12Device> device, size_t sizeBytes) {
