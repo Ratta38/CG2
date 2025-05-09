@@ -53,15 +53,6 @@ public:
 	static Vector3 Normalize(const Vector3& v);
 
 	/// <summary>
-	/// 3次元ベクトルの数値表示
-	/// </summary>
-	/// <param name="x">座標 X</param>
-	/// <param name="y">座標 Y</param>
-	/// <param name="vector">ベクトル</param>
-	/// <param name="label">使用した関数名</param>
-	static void VectorScreenPrintf(int x, int y, const Vector3& vector, const char* label);
-
-	/// <summary>
 	/// 拡大縮小行列
 	/// </summary>
 	/// <param name="scale">大きさ</param>
@@ -132,6 +123,18 @@ public:
 	/// <param name="matrix">行列</param>
 	/// <returns>変換後の座標</returns>
 	static Vector3 Transform(Vector3& vector, Matrix4x4& matrix);
+
+	/// <summary>
+	/// 正射影行列
+	/// </summary>
+	/// <param name="left">左端</param>
+	/// <param name="top">上端</param>
+	/// <param name="right">右端</param>
+	/// <param name="bottom">下端</param>
+	/// <param name="nearClip">近平面への距離</param>
+	/// <param name="farClip">遠平面への距離</param>
+	/// <returns>正規化デバイス座標系</returns>
+	static Matrix4x4 MakeOrthographicMatrix(float left, float top, float right, float bottom, float nearClip, float farClip);
 
 	/// <summary>
 	/// 透視投影行列（同次クリップへの変換）
