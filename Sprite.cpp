@@ -39,14 +39,29 @@ void Sprite::Initialize(ComPtr<ID3D12Device> device) {
 	vertexData[5].position = {640.0f, 360.0f, 0.0f, 1.0f}; // 右下
 	vertexData[5].texcoord = {1.0f, 1.0f};
 
+	for (uint32_t i = 0; i < 6; ++i) {
+		vertexData[i].normal = {0.0f, 0.0f, -1.0f};
+	}
+
 	// Sprite用のTransformationMatrix用のリソースを作る。Matrix4x4 1つ分のサイズを用意する
-	transformMatrixResource_ = CreateBufferResource(device.Get(), sizeof(Matrix4x4));
+	transformMatrixResource_ = CreateBufferResource(device.Get(), sizeof(TransformationMatrix));
 	// データを書き込む
-	//transformationMatrixData_ = nullptr;
+	// transformationMatrixData_ = nullptr;
 	// 書き込むためのアドレスを取得
 	transformMatrixResource_->Map(0, nullptr, reinterpret_cast<void**>(&transformationMatrixData_));
 	// 単位行列を書き込んでおく
-	*transformationMatrixData_ = MathUtility::MakeIdentity4x4();
+	*transformationMatrixData_ = {MathUtility::MakeIdentity4x4(), worldMatrixSprite_};
+
+	// Sprite用のマテリアルリソースを作る
+	materialResourceSprite_ = CreateBufferResource(device.Get(), sizeof(Material));
+	Material* materialDataSprite = nullptr;
+	// Mapしてデータを書き込む
+	materialResourceSprite_->Map(0, nullptr, reinterpret_cast<void**>(&materialDataSprite));
+	material_ = {1.0f, 1.0f, 1.0f, 1.0f}, false;
+	*materialDataSprite = material_;
+
+	// SpriteはLightingしないのでfalseを設定する
+	materialDataSprite->enableLighting = false;
 
 	transform_ = {
 	    {1.0f, 1.0f, 1.0f},
@@ -54,20 +69,16 @@ void Sprite::Initialize(ComPtr<ID3D12Device> device) {
         {0.0f, 0.0f, 0.0f}
     };
 	transformMatrixResource_->Unmap(0, nullptr);
+	materialResourceSprite_->Unmap(0, nullptr);
 }
 
 void Sprite::Update() {
-	if (!transformationMatrixData_) {
-		// デバッグログ出すか assert で止めて原因を見つける
-		assert(false && "transformationMatrixData_ is null!");
-		return;
-	}
 	// スプライト
-	Matrix4x4 worldMatrixSprite = MathUtility::MakeAffineMatrix(transform_.scale, transform_.rotate, transform_.translate);
+	worldMatrixSprite_ = MathUtility::MakeAffineMatrix(transform_.scale, transform_.rotate, transform_.translate);
 	Matrix4x4 viewMatrixSprite = MathUtility::MakeIdentity4x4();
 	Matrix4x4 projectionMatrixSprite = MathUtility::MakeOrthographicMatrix(0.0f, 0.0f, static_cast<float>(WinApp::kClientWidth), static_cast<float>(WinApp::kClientHeight), 0.0f, 100.0f);
-	Matrix4x4 worldViewProjectionMatrixSprite = MathUtility::Multiply(worldMatrixSprite, MathUtility::Multiply(viewMatrixSprite, projectionMatrixSprite));
-	*transformationMatrixData_ = worldViewProjectionMatrixSprite;
+	Matrix4x4 worldViewProjectionMatrixSprite = MathUtility::Multiply(worldMatrixSprite_, MathUtility::Multiply(viewMatrixSprite, projectionMatrixSprite));
+	*transformationMatrixData_ = {worldViewProjectionMatrixSprite, worldMatrixSprite_};
 }
 
 void Sprite::Draw(ComPtr<ID3D12GraphicsCommandList> commandList) {
@@ -75,9 +86,13 @@ void Sprite::Draw(ComPtr<ID3D12GraphicsCommandList> commandList) {
 	commandList->IASetVertexBuffers(0, 1, &vertexBufferView_); // VBVを設定
 	// TransformationMatrixCBufferの場所を設定
 	commandList->SetGraphicsRootConstantBufferView(1, transformMatrixResource_->GetGPUVirtualAddress());
+	commandList->SetGraphicsRootConstantBufferView(0, materialResourceSprite_->GetGPUVirtualAddress());
+	commandList->SetGraphicsRootDescriptorTable(2, srvHandle_);
 	// 描画! (DrawCall/ドローコール)
 	commandList->DrawInstanced(6, 1, 0, 0);
 }
+
+void Sprite::SetSrvHandle(D3D12_GPU_DESCRIPTOR_HANDLE srvHandle) { srvHandle_ = srvHandle; }
 
 ComPtr<ID3D12Resource> Sprite::CreateBufferResource(ComPtr<ID3D12Device> device, size_t sizeBytes) { 
 	if (!device)

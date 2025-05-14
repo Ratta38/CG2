@@ -3,8 +3,10 @@
 #include "VertexData.h"
 #include "WinApp.h"
 #include <cassert>
+#include <DirectXMath.h>
 
 using namespace Microsoft::WRL;
+using namespace DirectX;
 
 Model::~Model() {}
 
@@ -13,6 +15,8 @@ void Model::SetRootSignature(ComPtr<ID3D12RootSignature> rs) { rootSignature_ = 
 void Model::SetPipelineState(ComPtr<ID3D12PipelineState> pso) { pipelineState_ = pso; }
 
 void Model::SetTextureHandle(D3D12_GPU_DESCRIPTOR_HANDLE handle) { srvHandle_ = handle; }
+
+void Model::SetTextureHandle2(D3D12_GPU_DESCRIPTOR_HANDLE handle) { srvHandle2_ = handle; }
 
 void Model::Initialize(ComPtr<ID3D12Device> device, const IMeshGenerator& meshGen) {
 	std::vector<VertexData> vertices = meshGen.GenerateVertices();
@@ -33,24 +37,46 @@ void Model::Initialize(ComPtr<ID3D12Device> device, const IMeshGenerator& meshGe
 	vertexResource_->Unmap(0, nullptr);
 
 	// マテリアル用のリソースを作る。今回はcolor1つ分のサイズを用意する
-	materialResource_ = CreateBufferResource(device, sizeof(Vector4));
+	materialResource_ = CreateBufferResource(device, sizeof(Material));
 	// マテリアルにデータを書き込む
 	materialData_ = nullptr;
 	// 書き込むためのアドレスを取得
 	materialResource_->Map(0, nullptr, reinterpret_cast<void**>(&materialData_));
 	// 三角形の色
-	color_ = {1.0f, 1.0f, 1.0f, 1.0f};
+	material_ = {
+	    {1.0f, 1.0f, 1.0f, 1.0f},
+        true
+    };
 	// 今回は赤を書き込んでみる
-	*materialData_ = color_;
+	*materialData_ = material_;
 
 	// WVP用のリソースを作る。Matrix4x4 1つ分のサイズを用意する
-	wvpResource_ = CreateBufferResource(device, sizeof(Matrix4x4));
+	wvpResource_ = CreateBufferResource(device, sizeof(TransformationMatrix));
 	// データを書き込む
 	transformMatrixData_ = nullptr;
 	// 書き込むためのアドレスを取得
 	wvpResource_->Map(0, nullptr, reinterpret_cast<void**>(&transformMatrixData_));
 	// 単位行列を書き込んでおく
-	*transformMatrixData_ = MathUtility::MakeIdentity4x4();
+	*transformMatrixData_ = {MathUtility::MakeIdentity4x4(), worldMatrix_};
+
+	// 平行光源用のリソースを作る
+	directionalLightResource_ = CreateBufferResource(device, sizeof(DirectionalLight));
+	directionalLightData_ = nullptr;
+	directionalLightResource_->Map(0, nullptr, reinterpret_cast<void**>(&directionalLightData_));
+	directionalLight_.color = {1.0f, 1.0f, 1.0f, 1.0f};
+	directionalLight_.direction = {0.0f, -1.0f, 0.0f};
+	directionalLight_.intensity = 1.0f;
+	// 1. Vector3 → XMVECTOR 変換
+	XMVECTOR dirVec = XMVectorSet(
+	    directionalLight_.direction.x, directionalLight_.direction.y, directionalLight_.direction.z,
+	    0.0f // ← w成分は不要なので0
+	);
+	// 2. 正規化
+	dirVec = XMVector3Normalize(dirVec);
+	// 3. XMVECTOR → Vector3 に戻す
+	XMStoreFloat3(reinterpret_cast<XMFLOAT3*>(&directionalLight_.direction), dirVec);
+	*directionalLightData_ = directionalLight_;
+	directionalLightResource_->Unmap(0, nullptr);
 
 	transform_ = {
 	    {1.0f, 1.0f, 1.0f},
@@ -59,10 +85,14 @@ void Model::Initialize(ComPtr<ID3D12Device> device, const IMeshGenerator& meshGe
     };
 
 	cameraTransform_ = {
-	    {1.0f, 1.0f, 1.0f },
-        {0.0f, 0.0f, 0.0f },
+	    {1.0f, 1.0f, 1.0f  },
+        {0.0f, 0.0f, 0.0f  },
         {0.0f, 0.0f, -10.0f}
     };
+
+	useMonsterBall_ = true;
+
+	
 	wvpResource_->Unmap(0, nullptr);
 	materialResource_->Unmap(0, nullptr);
 }
@@ -70,13 +100,14 @@ void Model::Initialize(ComPtr<ID3D12Device> device, const IMeshGenerator& meshGe
 void Model::Update() {
 	// 三角形
 	transform_.rotate.y += 0.01f;
-	Matrix4x4 worldMatrix = MathUtility::MakeAffineMatrix(transform_.scale, transform_.rotate, transform_.translate);
+	worldMatrix_ = MathUtility::MakeAffineMatrix(transform_.scale, transform_.rotate, transform_.translate);
 	Matrix4x4 cameraMatrix = MathUtility::MakeAffineMatrix(cameraTransform_.scale, cameraTransform_.rotate, cameraTransform_.translate);
 	Matrix4x4 viewMatrix = MathUtility::Inverse(cameraMatrix);
 	Matrix4x4 projectionMatrix = MathUtility::MakePerspectiveFovMatrix(0.45f, static_cast<float>(WinApp::kClientWidth) / static_cast<float>(WinApp::kClientHeight), 0.1f, 100.0f);
-	Matrix4x4 worldViewProjectionMatrix = MathUtility::Multiply(worldMatrix, MathUtility::Multiply(viewMatrix, projectionMatrix));
-	*transformMatrixData_ = worldViewProjectionMatrix;
-	*materialData_ = color_; // 色の更新
+	Matrix4x4 worldViewProjectionMatrix = MathUtility::Multiply(worldMatrix_, MathUtility::Multiply(viewMatrix, projectionMatrix));
+	*transformMatrixData_ = {worldViewProjectionMatrix, worldMatrix_};
+	*materialData_ = material_; // 色の更新
+	*directionalLightData_ = directionalLight_;
 }
 
 void Model::Draw(ComPtr<ID3D12GraphicsCommandList> commandList) {
@@ -91,7 +122,9 @@ void Model::Draw(ComPtr<ID3D12GraphicsCommandList> commandList) {
 	// wvp用のBufferの場所を設定
 	commandList->SetGraphicsRootConstantBufferView(1, wvpResource_->GetGPUVirtualAddress());
 	// SRVのDescriptorTableの先頭を設定。2はrootParameter[2]である。
-	commandList->SetGraphicsRootDescriptorTable(2, srvHandle_);
+	commandList->SetGraphicsRootDescriptorTable(2, useMonsterBall_ ? srvHandle2_ : srvHandle_);
+	// ライティングCBufferの場所を指定
+	commandList->SetGraphicsRootConstantBufferView(3, directionalLightResource_->GetGPUVirtualAddress());
 	// 描画!(DrawCall/ドローコール)。6頂点で1つのインスタンス。インスタンスについては今後
 	commandList->DrawInstanced(vertexCount_, 1, 0, 0);
 }

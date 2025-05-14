@@ -46,6 +46,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	auto sprite = std::make_shared<Sprite>();
 	sprite->Initialize(dxCommon->GetDevice());
 
+	sprite->SetSrvHandle(textureManager_->GetTextureSrvHandleGPU());
+
 	// ウィンドウのxボタンが押されるまでループ
 	while (dxCommon->GetWinApp()->ProcessMessage()) {
 
@@ -67,6 +69,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		model->SetPipelineState(dxCommon->GetGraphicsPipelineState());
 		model->SetRootSignature(dxCommon->GetRootSignature());
 		model->SetTextureHandle(textureManager_->GetTextureSrvHandleGPU());
+		model->SetTextureHandle2(textureManager_->GetTextureSrvHandleGPU2());
+
+		// modelインスタンスの取得
+		imGuiManager_->SetModel(model);
 
 		// 球描画
 		model->Draw(dxCommon->GetCommandList());

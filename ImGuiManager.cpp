@@ -6,6 +6,10 @@
 
 using namespace Microsoft::WRL;
 
+void ImGuiManager::SetModel(const std::shared_ptr<Model>& model) {
+	model_ = model; // 同じインスタンスを共有 {
+}
+
 void ImGuiManager::Initialize(HWND hwnd, ComPtr<ID3D12Device> device, UINT bufferCount, DXGI_FORMAT format, ComPtr<ID3D12DescriptorHeap> srvDescriptorHeap) {
 	// ImGuiの初期化
 	IMGUI_CHECKVERSION();
@@ -13,6 +17,7 @@ void ImGuiManager::Initialize(HWND hwnd, ComPtr<ID3D12Device> device, UINT buffe
 	ImGui::StyleColorsDark();
 	ImGui_ImplWin32_Init(hwnd);
 	ImGui_ImplDX12_Init(device.Get(), bufferCount, format, srvDescriptorHeap.Get(), srvDescriptorHeap->GetCPUDescriptorHandleForHeapStart(), srvDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
+	model_ = std::make_shared<Model>();
 }
 
 void ImGuiManager::BeginFrame() {
@@ -21,11 +26,13 @@ void ImGuiManager::BeginFrame() {
 	ImGui::NewFrame();
 }
 
-void ImGuiManager::UpdateUI(Vector4& color, Transform& transform) {
+void ImGuiManager::UpdateUI(Material& material, Transform& transform) {
 	ImGui::ShowDemoWindow();
-	ImGui::SliderFloat3("Color", &color.x, 0.0f, 1.0f);
+	ImGui::SliderFloat3("Color", &material.color.x, 0.0f, 1.0f);
 	ImGui::SliderFloat("Translate X", &transform.translate.x, 0.0f, 640);
 	ImGui::SliderFloat("Translate Y", &transform.translate.y, 0.0f, 360);
+	ImGui::Checkbox("useMonsterBall", &model_->GetUseMonsterBallRef());
+	ImGui::Text("useMonsterBall_: %s", model_->GetUseMonsterBallRef() ? "true" : "false"); // 変更確認用
 }
 
 void ImGuiManager::Render(ComPtr<ID3D12GraphicsCommandList> commandList) {
