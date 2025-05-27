@@ -1,16 +1,19 @@
 #include "SphereMeshGenerator.h"
 #include "MathUtility.h"
 
-std::vector<VertexData> SphereMeshGenerator::GenerateVertices() const {
-	std::vector<VertexData> vertices;
+MeshData SphereMeshGenerator::GenerateMeshData() const {
+	MeshData meshData;
 	const float kLonEvery = MathUtility::pi_ * 2.0f / static_cast<float>(kSubdivision_);
 	const float kLatEvery = MathUtility::pi_ / static_cast<float>(kSubdivision_);
 
-	vertices.reserve((kSubdivision_ + 1) * (kSubdivision_ + 1) * 6);
+	meshData.vertices.reserve((kSubdivision_ + 1) * (kSubdivision_ + 1) * 4);
+	meshData.indices.reserve((kSubdivision_ + 1) * (kSubdivision_ + 1) * 6);
 	for (uint32_t latIndex = 0; latIndex < kSubdivision_; ++latIndex) {
 		float lat = -MathUtility::pi_ / 2.0f + kLatEvery * latIndex;
 		for (uint32_t lonIndex = 0; lonIndex < kSubdivision_; ++lonIndex) {
 			float lon = lonIndex * kLonEvery;
+
+			const uint32_t baseIndex = static_cast<uint32_t>(meshData.vertices.size());
 
 			// 頂点位置を事前に生成
 			Vector4 p1 = MakeSphereVertex(lat, lon);
@@ -31,35 +34,35 @@ std::vector<VertexData> SphereMeshGenerator::GenerateVertices() const {
 				return Vector3{n.x / len, n.y / len, n.z / len};
 			};
 
-			vertices.push_back({
+			meshData.vertices.push_back({
 			    p1, {u1, v1},
                  GetNormal(p1)
             });
-			vertices.push_back({
+			meshData.vertices.push_back({
 			    p2, {u1, v2},
                  GetNormal(p2)
             });
-			vertices.push_back({
+			meshData.vertices.push_back({
 			    p3, {u2, v1},
                  GetNormal(p3)
             });
-
-			vertices.push_back({
-			    p3, {u2, v1},
-                 GetNormal(p3)
-            });
-			vertices.push_back({
-			    p2, {u1, v2},
-                 GetNormal(p2)
-            });
-			vertices.push_back({
+			meshData.vertices.push_back({
 			    p4, {u2, v2},
                  GetNormal(p4)
             });
+
+			// インデックス追加
+			meshData.indices.push_back(baseIndex);
+			meshData.indices.push_back(baseIndex + 1);
+			meshData.indices.push_back(baseIndex + 2);
+
+			meshData.indices.push_back(baseIndex + 2);
+			meshData.indices.push_back(baseIndex + 1);
+			meshData.indices.push_back(baseIndex + 3);
 		}
 	}
 
-	return vertices;
+	return meshData;
 }
 
 Vector4 SphereMeshGenerator::MakeSphereVertex(float lat, float lon) const { 

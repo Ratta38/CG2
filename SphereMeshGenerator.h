@@ -6,7 +6,7 @@ class SphereMeshGenerator : public IMeshGenerator
 public:
 	SphereMeshGenerator(uint32_t subdivision) : kSubdivision_(subdivision) {}
 
-	std::vector<VertexData> GenerateVertices() const override;
+	MeshData GenerateMeshData() const override;
 
 private:
 	Vector4 MakeSphereVertex(float lat, float lon) const;

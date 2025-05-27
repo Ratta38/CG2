@@ -4,6 +4,7 @@ struct Material
 {
     float32_t4 color;
     int32_t enableLighting;
+    float32_t4x4 uvTransform;
 };
 
 struct DirectionalLight
@@ -25,11 +26,13 @@ ConstantBuffer<DirectionalLight> gDirectionalLight : register(b1);
 
 PixelShaderOutput main(VertexShaderOutput input)
 {
-    float32_t4 textureColor = gTexture.Sample(gSampler, input.texcoord);
+    float4 transformedUV = mul(float32_t4(input.texcoord, 0.0f, 1.0f), gMaterial.uvTransform);
+    float32_t4 textureColor = gTexture.Sample(gSampler, transformedUV.xy);
     PixelShaderOutput output;
     if (gMaterial.enableLighting != 0) // Lightingする場合
     {
-        float cos = saturate(dot(normalize(input.normal), -gDirectionalLight.direction));
+        float NdotL = dot(normalize(input.normal), -gDirectionalLight.direction);
+        float cos = (NdotL * 0.5f + 0.5f) * (NdotL * 0.5f + 0.5f);
         output.color = gMaterial.color * textureColor * gDirectionalLight.color * cos * gDirectionalLight.intensity;
     }
     else // Lightingしない場合。前回までと同じ演算

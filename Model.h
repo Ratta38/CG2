@@ -6,6 +6,7 @@
 #include "Vector4.h"
 #include "TransformationMatrix.h"
 #include "DirectionalLight.h"
+#include "MeshData.h"
 #include <d3d12.h>
 #include <memory>
 #include <wrl.h>
@@ -28,18 +29,24 @@ public:
 	void SetPipelineState(Microsoft::WRL::ComPtr<ID3D12PipelineState> pso);
 	void SetTextureHandle(D3D12_GPU_DESCRIPTOR_HANDLE handle);
 	void SetTextureHandle2(D3D12_GPU_DESCRIPTOR_HANDLE handle);
+	void SetTextureHandle3(D3D12_GPU_DESCRIPTOR_HANDLE handle);
 
 private:
 	Microsoft::WRL::ComPtr<ID3D12Resource> CreateBufferResource(Microsoft::WRL::ComPtr<ID3D12Device> device, size_t sizeBytes);
+	void UpdateColor(Material& material);
+
 
 private:
 	Microsoft::WRL::ComPtr<ID3D12Resource> vertexResource_;
+	Microsoft::WRL::ComPtr<ID3D12Resource> indexResource_;
 	D3D12_VERTEX_BUFFER_VIEW vertexBufferView_;
+	D3D12_INDEX_BUFFER_VIEW indexBufferView_;
 	Microsoft::WRL::ComPtr<ID3D12Resource> materialResource_;
 	Microsoft::WRL::ComPtr<ID3D12Resource> wvpResource_;
 	Microsoft::WRL::ComPtr<ID3D12Resource> directionalLightResource_;
 	Transform transform_;
 	Transform cameraTransform_;
+	Transform uvTransform_;
 	Matrix4x4 worldMatrix_;
 	TransformationMatrix* transformMatrixData_;
 	Material material_ = {};
@@ -52,10 +59,15 @@ private:
 	Microsoft::WRL::ComPtr<ID3D12PipelineState> pipelineState_;
 	D3D12_GPU_DESCRIPTOR_HANDLE srvHandle_;
 	D3D12_GPU_DESCRIPTOR_HANDLE srvHandle2_;
+	D3D12_GPU_DESCRIPTOR_HANDLE srvHandle3_;
 
 	// 画像切り替え用の変数
 	bool useMonsterBall_;
 
 	// 描画用に頂点数を取得
-	uint32_t vertexCount_ = 0;
+	uint32_t vertexCount_;
+	uint32_t indexCount_;
+
+	// 色の増減量
+	Vector4 stepColor_;
 };
