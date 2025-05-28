@@ -4,6 +4,8 @@
 #include "WinApp.h"
 #include <DirectXMath.h>
 #include <cassert>
+#include <fstream>
+#include <sstream>
 
 using namespace Microsoft::WRL;
 using namespace DirectX;
@@ -26,12 +28,14 @@ void Model::Initialize(ComPtr<ID3D12Device> device, const IMeshGenerator& meshGe
 	vertexCount_ = static_cast<uint32_t>(meshData.vertices.size());
 	indexCount_ = static_cast<uint32_t>(meshData.indices.size());
 
+	// モデル読み込み
+	modelData_ = LoadObjFile("resources", "plane.obj");
 	// 頂点リソースの作成
-	vertexResource_ = CreateBufferResource(device, sizeof(VertexData) * vertexCount_);
+	vertexResource_ = CreateBufferResource(device, sizeof(VertexData) * modelData_.vertices.size());
 	// リソースの先頭のアドレスから使う
 	vertexBufferView_.BufferLocation = vertexResource_->GetGPUVirtualAddress();
 	// 使用するリソースのサイズは頂点6つ分のサイズ
-	vertexBufferView_.SizeInBytes = static_cast<UINT>(sizeof(VertexData) * vertexCount_);
+	vertexBufferView_.SizeInBytes = static_cast<UINT>(sizeof(VertexData) * modelData_.vertices.size());
 	// 1頂点あたりのサイズ
 	vertexBufferView_.StrideInBytes = sizeof(VertexData);
 
@@ -49,7 +53,7 @@ void Model::Initialize(ComPtr<ID3D12Device> device, const IMeshGenerator& meshGe
 	VertexData* vertexData = nullptr;
 	// 書き込むためのアドレスを取得
 	vertexResource_->Map(0, nullptr, reinterpret_cast<void**>(&vertexData));
-	std::memcpy(vertexData, meshData.vertices.data(), sizeof(VertexData) * meshData.vertices.size());
+	std::memcpy(vertexData, modelData_.vertices.data(), sizeof(VertexData) * modelData_.vertices.size());
 	vertexResource_->Unmap(0, nullptr);
 
 	// インデックスデータの書き込み
@@ -89,14 +93,14 @@ void Model::Initialize(ComPtr<ID3D12Device> device, const IMeshGenerator& meshGe
 	directionalLight_.color = {1.0f, 1.0f, 1.0f, 1.0f};
 	directionalLight_.direction = {0.0f, -1.0f, 0.0f};
 	directionalLight_.intensity = 1.0f;
-	// 1. Vector3 → XMVECTOR 変換
+	// Vector3 → XMVECTOR 変換
 	XMVECTOR dirVec = XMVectorSet(
 	    directionalLight_.direction.x, directionalLight_.direction.y, directionalLight_.direction.z,
 	    0.0f // ← w成分は不要なので0
 	);
-	// 2. 正規化
+	// 正規化
 	dirVec = XMVector3Normalize(dirVec);
-	// 3. XMVECTOR → Vector3 に戻す
+	// XMVECTOR → Vector3 に戻す
 	XMStoreFloat3(reinterpret_cast<XMFLOAT3*>(&directionalLight_.direction), dirVec);
 	*directionalLightData_ = directionalLight_;
 	directionalLightResource_->Unmap(0, nullptr);
@@ -136,10 +140,10 @@ void Model::Update() {
 	Matrix4x4 projectionMatrix = MathUtility::MakePerspectiveFovMatrix(0.45f, static_cast<float>(WinApp::kClientWidth) / static_cast<float>(WinApp::kClientHeight), 0.1f, 100.0f);
 	Matrix4x4 worldViewProjectionMatrix = MathUtility::Multiply(worldMatrix_, MathUtility::Multiply(viewMatrix, projectionMatrix));
 
-	/*Matrix4x4 uvTransformMatrix = MathUtility::MakeScaleMatrix(uvTransform_.scale);
+	Matrix4x4 uvTransformMatrix = MathUtility::MakeScaleMatrix(uvTransform_.scale);
 	uvTransformMatrix = MathUtility::Multiply(uvTransformMatrix, MathUtility::MakeRollRotateMatrix(uvTransform_.rotate.z));
 	uvTransformMatrix = MathUtility::Multiply(uvTransformMatrix, MathUtility::MakeTranslateMatrix(uvTransform_.translate));
-	materialData_->uvTransform = uvTransformMatrix;*/
+	material_.uvTransform = uvTransformMatrix;
 
 	// 三角形のデータ更新
 	*transformMatrixData_ = {worldViewProjectionMatrix, worldMatrix_};
@@ -152,7 +156,7 @@ void Model::Draw(ComPtr<ID3D12GraphicsCommandList> commandList) {
 	commandList->SetGraphicsRootSignature(rootSignature_.Get());
 	commandList->SetPipelineState(pipelineState_.Get());       // PSOを設定
 	commandList->IASetVertexBuffers(0, 1, &vertexBufferView_); // VBVを設定
-	commandList->IASetIndexBuffer(&indexBufferView_); // IBVを設定
+	//commandList->IASetIndexBuffer(&indexBufferView_); // IBVを設定
 	// 形状を設定。PSOに設定しているものとはまた別。同じものを設定すると考えておけば良い
 	commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	// マテリアルCBufferの場所を設定
@@ -160,12 +164,12 @@ void Model::Draw(ComPtr<ID3D12GraphicsCommandList> commandList) {
 	// wvp用のBufferの場所を設定
 	commandList->SetGraphicsRootConstantBufferView(1, wvpResource_->GetGPUVirtualAddress());
 	// SRVのDescriptorTableの先頭を設定。2はrootParameter[2]である。
-	commandList->SetGraphicsRootDescriptorTable(2, useMonsterBall_ ? srvHandle2_ : srvHandle3_);
+	commandList->SetGraphicsRootDescriptorTable(2, useMonsterBall_ ? srvHandle2_ : srvHandle_);
 	// ライティングCBufferの場所を指定
 	commandList->SetGraphicsRootConstantBufferView(3, directionalLightResource_->GetGPUVirtualAddress());
-	// 描画!(DrawCall/ドローコール)。6頂点で1つのインスタンス。インスタンスについては今後
-	//commandList->DrawInstanced(vertexCount_, 1, 0, 0);
-	commandList->DrawIndexedInstanced(indexCount_, 1, 0, 0, 0);
+	// 描画!(DrawCall/ドローコール)。
+	commandList->DrawInstanced(UINT(modelData_.vertices.size()), 1, 0, 0);
+	//commandList->DrawIndexedInstanced(indexCount_, 1, 0, 0, 0);
 }
 
 ComPtr<ID3D12Resource> Model::CreateBufferResource(ComPtr<ID3D12Device> device, size_t sizeBytes) {
@@ -210,4 +214,109 @@ void Model::UpdateColor(Material& material) {
 	if (material.color.z >= 1.0f || material.color.z <= 0.0f) {
 		stepColor_.z *= -1;
 	}
+}
+
+ModelData Model::LoadObjFile(const std::string& directoryPath, const std::string& filename) { 
+	ModelData modelData; // 構築するModelData
+	std::vector<Vector4> positions; // 位置
+	std::vector<Vector3> normals; // 法線
+	std::vector<Vector2> texcoords; // テクスチャ座標
+	std::string line; // ファイルから読んだ1行を格納するもの
+	
+	std::ifstream file(directoryPath + "/" + filename); // ファイルを開く
+	assert(file.is_open()); // とりあえず開けなかったら止める
+
+	while (std::getline(file, line))
+	{
+		std::string identifier;
+		std::istringstream s(line);
+		s >> identifier; // 先頭の識別子を読む
+
+		// identifierに応じた処理
+		if (identifier == "v")
+		{
+			Vector4 position;
+			s >> position.x >> position.y >> position.z;
+			position.x *= -1.0f;
+			position.w = 1.0f;
+			positions.push_back(position);
+		}
+		else if (identifier == "vt")
+		{
+			Vector2 texcoord;
+			s >> texcoord.x >> texcoord.y;
+			texcoord.y = 1.0f - texcoord.y;
+			texcoords.push_back(texcoord);
+		}
+		else if (identifier == "vn")
+		{
+			Vector3 normal;
+			s >> normal.x >> normal.y >> normal.z;
+			normal.x *= -1.0f;
+			normals.push_back(normal);
+		}
+		else if (identifier == "f")
+		{
+			VertexData triangle[3];
+			// 面は三角形限定。その他は未対応
+			for (int32_t faceVertex = 0;faceVertex < 3;++faceVertex)
+			{
+				std::string vertexDefinition;
+				s >> vertexDefinition;
+				// 頂点の要素へのIndexは「位置/UV/法線」で格納されているので、分解してi\Indexを取得する
+				std::istringstream v(vertexDefinition);
+				uint32_t elementIndices[3];
+				for (int32_t element = 0;element < 3;++element)
+				{
+					std::string index;
+					std::getline(v, index, '/'); // 区切りでインデックスを読んでいく
+					elementIndices[element] = std::stoi(index);
+				}
+				// 要素へのIndexから、実際の要素の値を取得して、頂点を構築する
+				Vector4 position = positions[elementIndices[0] - 1];
+				Vector2 texcoord = texcoords[elementIndices[1] - 1];
+				Vector3 normal = normals[elementIndices[2] - 1];
+				VertexData vertex = {position, texcoord, normal};
+				modelData.vertices.push_back(vertex);
+				triangle[faceVertex] = {position, texcoord, normal};
+			}
+			// 頂点を逆順で登録することで、周り順を逆にする
+			modelData.vertices.push_back(triangle[2]);
+			modelData.vertices.push_back(triangle[1]);
+			modelData.vertices.push_back(triangle[0]);
+		}
+		else if (identifier == "mtllib")
+		{
+			// materialTemplateLibraryファイルの名前を取得する
+			std::string materialFilename;
+			s >> materialFilename;
+			// 基本的にobjファイルと同一階層にmtlは存在させるので、ディレクトリ名とファイル名を渡す
+			modelData.material = LoadMaterialTemplateFile(directoryPath, materialFilename);
+		}
+	}
+	return modelData;
+}
+
+MaterialData Model::LoadMaterialTemplateFile(const std::string& directoryPath, const std::string& filename) { 
+	MaterialData materialData; // 構築するMaterialData
+	std::string line; // ファイルから読んだ1行を格納するもの
+	std::ifstream file(directoryPath + "/" + filename); // ファイルを開く
+	assert(file.is_open()); // とりあえず開けなかったら止める
+
+	while (std::getline(file, line))
+	{
+		std::string identifier;
+		std::istringstream s(line);
+		s >> identifier;
+
+		// identifierに応じた処理
+		if (identifier == "map_Kd")
+		{
+			std::string textureFilename;
+			s >> textureFilename;
+			// 連結してファイルパスにする
+			materialData.textureFilePath = directoryPath + "/" + textureFilename;
+		}
+	}
+	return materialData;
 }

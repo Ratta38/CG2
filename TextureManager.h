@@ -1,5 +1,6 @@
 #pragma once
 #include "externals/DirectXTex/DirectXTex.h"
+#include "MaterialData.h"
 #include <d3d12.h>
 #include <string>
 #include <vector>
@@ -8,7 +9,7 @@
 class TextureManager {
 public:
 	~TextureManager();
-	void Initialize(Microsoft::WRL::ComPtr<ID3D12Device> device, Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> descriptorHeap);
+	void Initialize(Microsoft::WRL::ComPtr<ID3D12Device> device, Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> descriptorHeap, MaterialData& materialData);
 	DirectX::ScratchImage LoadTexture(const std::string& filePath);
 	D3D12_CPU_DESCRIPTOR_HANDLE GetCPUDescriptorHandle(Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> descriptorHeap, uint32_t descriptorSize, uint32_t index);
 	D3D12_GPU_DESCRIPTOR_HANDLE GetGPUDescriptorHandle(Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> descriptorHeap, uint32_t descriptorSize, uint32_t index);

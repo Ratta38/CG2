@@ -11,9 +11,9 @@ Sprite::~Sprite() {}
 
 void Sprite::Initialize(ComPtr<ID3D12Device> device) {
 	// スプライトの頂点リソースを作る
-	vertexResource_ = CreateBufferResource(device.Get(), sizeof(VertexData) * 4);
+	vertexResource_ = CreateBufferResource(device, sizeof(VertexData) * 4);
 	// インデックスリソースを作る
-	indexResource_ = CreateBufferResource(device.Get(), sizeof(uint32_t) * 6);
+	indexResource_ = CreateBufferResource(device, sizeof(uint32_t) * 6);
 
 	// リソースの先頭のアドレスから使う
 	vertexBufferView_.BufferLocation = vertexResource_->GetGPUVirtualAddress();
@@ -59,7 +59,7 @@ void Sprite::Initialize(ComPtr<ID3D12Device> device) {
 	indexData[5] = 2;
 
 	// Sprite用のTransformationMatrix用のリソースを作る。Matrix4x4 1つ分のサイズを用意する
-	transformMatrixResource_ = CreateBufferResource(device.Get(), sizeof(TransformationMatrix));
+	transformMatrixResource_ = CreateBufferResource(device, sizeof(TransformationMatrix));
 	// データを書き込む
 	// transformationMatrixData_ = nullptr;
 	// 書き込むためのアドレスを取得
@@ -68,7 +68,7 @@ void Sprite::Initialize(ComPtr<ID3D12Device> device) {
 	*transformationMatrixData_ = {MathUtility::MakeIdentity4x4(), worldMatrixSprite_};
 
 	// Sprite用のマテリアルリソースを作る
-	materialResourceSprite_ = CreateBufferResource(device.Get(), sizeof(Material));
+	materialResourceSprite_ = CreateBufferResource(device, sizeof(Material));
 	materialData_ = nullptr;
 	// Mapしてデータを書き込む
 	materialResourceSprite_->Map(0, nullptr, reinterpret_cast<void**>(&materialData_));

@@ -7,9 +7,12 @@
 #include "TransformationMatrix.h"
 #include "DirectionalLight.h"
 #include "MeshData.h"
+#include "ModelData.h"
+#include "MaterialData.h"
 #include <d3d12.h>
 #include <memory>
 #include <wrl.h>
+#include <string>
 class Model {
 public:
 	~Model();
@@ -24,6 +27,7 @@ public:
 	D3D12_VERTEX_BUFFER_VIEW GetVertexBufferView() { return vertexBufferView_; }
 	bool& GetUseMonsterBallRef() { return useMonsterBall_; }
 	D3D12_GPU_DESCRIPTOR_HANDLE GetSrvHandle() { return srvHandle_; }
+	ModelData& GetModelData() { return modelData_; }
 
 	void SetRootSignature(Microsoft::WRL::ComPtr<ID3D12RootSignature> rs);
 	void SetPipelineState(Microsoft::WRL::ComPtr<ID3D12PipelineState> pso);
@@ -34,7 +38,8 @@ public:
 private:
 	Microsoft::WRL::ComPtr<ID3D12Resource> CreateBufferResource(Microsoft::WRL::ComPtr<ID3D12Device> device, size_t sizeBytes);
 	void UpdateColor(Material& material);
-
+	ModelData LoadObjFile(const std::string& directoryPath, const std::string& filename);
+	MaterialData LoadMaterialTemplateFile(const std::string& directoryPath, const std::string& filename);
 
 private:
 	Microsoft::WRL::ComPtr<ID3D12Resource> vertexResource_;
@@ -70,4 +75,6 @@ private:
 
 	// 色の増減量
 	Vector4 stepColor_;
+
+	ModelData modelData_;
 };

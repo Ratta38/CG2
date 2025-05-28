@@ -6,17 +6,17 @@ using namespace Microsoft::WRL;
 TextureManager::~TextureManager() {
 }
 
-void TextureManager::Initialize(ComPtr<ID3D12Device> device, ComPtr<ID3D12DescriptorHeap> descriptorHeap) {
+void TextureManager::Initialize(ComPtr<ID3D12Device> device, ComPtr<ID3D12DescriptorHeap> descriptorHeap, MaterialData& materialData) {
 	// Textureを読んで転送する
 	mipImage_ = LoadTexture("resources/uvChecker.png");
-	mipImage2_ = LoadTexture("resources/monsterBall.png");
+	mipImage2_ = LoadTexture(materialData.textureFilePath);
 	mipImage3_ = LoadTexture("resources/white.png");
 	const DirectX::TexMetadata& metadata = mipImage_.GetMetadata();
 	const DirectX::TexMetadata& metadata2 = mipImage2_.GetMetadata();
 	const DirectX::TexMetadata& metadata3 = mipImage3_.GetMetadata();
-	textureResource_ = CreateTextureResource(device.Get(), metadata);
-	textureResource2_ = CreateTextureResource(device.Get(), metadata2);
-	textureResource3_ = CreateTextureResource(device.Get(), metadata3);
+	textureResource_ = CreateTextureResource(device, metadata);
+	textureResource2_ = CreateTextureResource(device, metadata2);
+	textureResource3_ = CreateTextureResource(device, metadata3);
 	UploadTextureData(textureResource_, mipImage_);
 	UploadTextureData(textureResource2_, mipImage2_);
 	UploadTextureData(textureResource3_, mipImage3_);

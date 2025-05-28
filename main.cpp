@@ -1,12 +1,13 @@
+#include "D3DResourceLeakChecker.h"
 #include "DirectXCommon.h"
 #include "ImGuiManager.h"
 #include "Model.h"
+#include "SphereMeshGenerator.h"
 #include "Sprite.h"
 #include "TextureManager.h"
 #include "WinApp.h"
-#include "D3DResourceLeakChecker.h"
+#include "XAudio.h"
 #include <memory>
-#include "SphereMeshGenerator.h"
 #pragma comment(lib, "d3d12.lib")
 #pragma comment(lib, "dxgi.lib")
 #include <dxgidebug.h>
@@ -29,12 +30,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	// テクスチャマネージャー
 	std::unique_ptr<TextureManager> textureManager_ = std::make_unique<TextureManager>();
-	textureManager_->Initialize(dxCommon->GetDevice(), dxCommon->GetSrvDescriptorHeap().Get());
 
 	// ImGuiManager
 	std::unique_ptr<ImGuiManager> imGuiManager_ = std::make_unique<ImGuiManager>();
-	imGuiManager_->Initialize(
-	    dxCommon->GetWinApp()->GetHWND(), dxCommon->GetDevice(), dxCommon->GetSwapChainDescBufferCount(), dxCommon->GetRtvFormat(), dxCommon->GetSrvDescriptorHeap().Get());
+	imGuiManager_->Initialize(dxCommon->GetWinApp()->GetHWND(), dxCommon->GetDevice(), dxCommon->GetSwapChainDescBufferCount(), dxCommon->GetRtvFormat(), dxCommon->GetSrvDescriptorHeap().Get());
 
 	SphereMeshGenerator sphereMesh(16);
 
@@ -46,7 +45,16 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	auto sprite = std::make_shared<Sprite>();
 	sprite->Initialize(dxCommon->GetDevice());
 
+	// XAudio
+	std::unique_ptr<XAudio> audio = std::make_unique<XAudio>();
+	audio->Initialize();
+	audio->SoundsAllLoad();
+
+	textureManager_->Initialize(dxCommon->GetDevice(), dxCommon->GetSrvDescriptorHeap().Get(), model->GetModelData().material);
 	sprite->SetSrvHandle(textureManager_->GetTextureSrvHandleGPU());
+
+	// 音声再生
+	audio->SoundPlayWave(audio->GetXAudio2().Get(), audio->GetSound());
 
 	// ウィンドウのxボタンが押されるまでループ
 	while (dxCommon->GetWinApp()->ProcessMessage()) {
@@ -66,7 +74,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		ImGui::SliderFloat3("Translate", &model->GetTransform().translate.x, -5.0f, 5.0f);
 		ImGui::Checkbox("useMonsterBall", &model->GetUseMonsterBallRef());
 		ImGui::Text("useMonsterBall_: %s", model->GetUseMonsterBallRef() ? "true" : "false"); // 変更確認用
-		ImGui::SliderFloat3("spriteTranslate", &sprite->GetTransform().translate.x, -5.0f,5.0f);
+		ImGui::SliderFloat3("spriteTranslate", &sprite->GetTransform().translate.x, -5.0f, 5.0f);
 		ImGui::DragFloat2("UVTranslate", &sprite->GetUVTransform().translate.x, 0.01f, -10.0f, 10.0f);
 		ImGui::DragFloat2("UVScale", &sprite->GetUVTransform().scale.x, 0.01f, -10.0f, 10.0f);
 		ImGui::SliderAngle("UVRotate", &sprite->GetUVTransform().rotate.z);
