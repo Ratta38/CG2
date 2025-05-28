@@ -7,6 +7,7 @@
 #include "TextureManager.h"
 #include "WinApp.h"
 #include "XAudio.h"
+#include "DirectInput.h"
 #include <memory>
 #pragma comment(lib, "d3d12.lib")
 #pragma comment(lib, "dxgi.lib")
@@ -15,7 +16,7 @@
 #include <dxcapi.h>
 #pragma comment(lib, "dxcompiler.lib")
 
-int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
+int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int) {
 	CoInitializeEx(0, COINIT_MULTITHREADED);
 
 	// リリースリークチェック
@@ -50,14 +51,25 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	audio->Initialize();
 	audio->SoundsAllLoad();
 
+	// DirectInput
+	std::unique_ptr<DirectInput> input = std::make_unique<DirectInput>();
+	input->Initialize(hInstance, dxCommon->GetWinApp()->GetHWND());
+
 	textureManager_->Initialize(dxCommon->GetDevice(), dxCommon->GetSrvDescriptorHeap().Get(), model->GetModelData().material);
 	sprite->SetSrvHandle(textureManager_->GetTextureSrvHandleGPU());
 
 	// 音声再生
 	audio->SoundPlayWave(audio->GetXAudio2().Get(), audio->GetSound());
 
+	int count = 0;
+
 	// ウィンドウのxボタンが押されるまでループ
 	while (dxCommon->GetWinApp()->ProcessMessage()) {
+
+		input->Update();
+		if (input->IsKeyReleased(DIK_0)) {
+			count++;
+		}
 
 		imGuiManager_->BeginFrame();
 
@@ -78,6 +90,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		ImGui::DragFloat2("UVTranslate", &sprite->GetUVTransform().translate.x, 0.01f, -10.0f, 10.0f);
 		ImGui::DragFloat2("UVScale", &sprite->GetUVTransform().scale.x, 0.01f, -10.0f, 10.0f);
 		ImGui::SliderAngle("UVRotate", &sprite->GetUVTransform().rotate.z);
+		ImGui::Text("%d", count);
 
 		// 描画開始
 		dxCommon->BeginFrame();
