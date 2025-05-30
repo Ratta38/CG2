@@ -28,12 +28,14 @@ public:
 	bool& GetUseMonsterBallRef() { return useMonsterBall_; }
 	D3D12_GPU_DESCRIPTOR_HANDLE GetSrvHandle() { return srvHandle_; }
 	ModelData& GetModelData() { return modelData_; }
+	Matrix4x4 GetCameraMatrix() { return cameraMatrix_; }
 
 	void SetRootSignature(Microsoft::WRL::ComPtr<ID3D12RootSignature> rs);
 	void SetPipelineState(Microsoft::WRL::ComPtr<ID3D12PipelineState> pso);
 	void SetTextureHandle(D3D12_GPU_DESCRIPTOR_HANDLE handle);
 	void SetTextureHandle2(D3D12_GPU_DESCRIPTOR_HANDLE handle);
 	void SetTextureHandle3(D3D12_GPU_DESCRIPTOR_HANDLE handle);
+	void SetViewMatrix(Matrix4x4 viewMatrix) { viewMatrix_ = viewMatrix; }
 
 private:
 	Microsoft::WRL::ComPtr<ID3D12Resource> CreateBufferResource(Microsoft::WRL::ComPtr<ID3D12Device> device, size_t sizeBytes);
@@ -51,6 +53,8 @@ private:
 	Microsoft::WRL::ComPtr<ID3D12Resource> directionalLightResource_;
 	Transform transform_;
 	Transform cameraTransform_;
+	Matrix4x4 cameraMatrix_;
+	Matrix4x4 viewMatrix_;
 	Transform uvTransform_;
 	Matrix4x4 worldMatrix_;
 	TransformationMatrix* transformMatrixData_;

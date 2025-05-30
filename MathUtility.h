@@ -39,6 +39,8 @@ public:
 	/// <returns>内積</returns>
 	static float Dot(const Vector3& v1, const Vector3& v2);
 
+	static Vector3 Cross(const Vector3& v1, const Vector3& v2);
+
 	/// <summary>
 	/// ベクトルの長さ
 	/// </summary>

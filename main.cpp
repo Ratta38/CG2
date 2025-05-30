@@ -8,6 +8,8 @@
 #include "WinApp.h"
 #include "XAudio.h"
 #include "DirectInput.h"
+#include "DebugCamera.h"
+#include "MathUtility.h"
 #include <memory>
 #pragma comment(lib, "d3d12.lib")
 #pragma comment(lib, "dxgi.lib")
@@ -55,23 +57,27 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int) {
 	std::unique_ptr<DirectInput> input = std::make_unique<DirectInput>();
 	input->Initialize(hInstance, dxCommon->GetWinApp()->GetHWND());
 
+	// DebugCamera
+	std::unique_ptr<DebugCamera> debugCamera = std::make_unique<DebugCamera>();
+	debugCamera->Initialize(model->GetCameraMatrix());
+
 	textureManager_->Initialize(dxCommon->GetDevice(), dxCommon->GetSrvDescriptorHeap().Get(), model->GetModelData().material);
 	sprite->SetSrvHandle(textureManager_->GetTextureSrvHandleGPU());
 
 	// 音声再生
 	audio->SoundPlayWave(audio->GetXAudio2().Get(), audio->GetSound());
 
-	int count = 0;
+	//int count = 0;
 
 	// ウィンドウのxボタンが押されるまでループ
 	while (dxCommon->GetWinApp()->ProcessMessage()) {
 
 		input->Update();
-		if (input->IsKeyReleased(DIK_0)) {
-			count++;
-		}
 
 		imGuiManager_->BeginFrame();
+
+		debugCamera->Update(*input);
+		model->SetViewMatrix(debugCamera->GetViewMatrix());
 
 		// ゲームの処理
 		// 三角形
@@ -90,7 +96,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int) {
 		ImGui::DragFloat2("UVTranslate", &sprite->GetUVTransform().translate.x, 0.01f, -10.0f, 10.0f);
 		ImGui::DragFloat2("UVScale", &sprite->GetUVTransform().scale.x, 0.01f, -10.0f, 10.0f);
 		ImGui::SliderAngle("UVRotate", &sprite->GetUVTransform().rotate.z);
-		ImGui::Text("%d", count);
 
 		// 描画開始
 		dxCommon->BeginFrame();
