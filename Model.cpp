@@ -133,7 +133,7 @@ void Model::Initialize(ComPtr<ID3D12Device> device, const IMeshGenerator& meshGe
 
 void Model::Update() {
 	// 三角形 回転
-	transform_.rotate.y += 0.01f;
+	//transform_.rotate.y += 0.01f;
 
 	// 座標変換
 	worldMatrix_ = MathUtility::MakeAffineMatrix(transform_.scale, transform_.rotate, transform_.translate);

@@ -59,13 +59,13 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int) {
 
 	// DebugCamera
 	std::unique_ptr<DebugCamera> debugCamera = std::make_unique<DebugCamera>();
-	debugCamera->Initialize(model->GetCameraMatrix());
+	debugCamera->Initialize();
 
 	textureManager_->Initialize(dxCommon->GetDevice(), dxCommon->GetSrvDescriptorHeap().Get(), model->GetModelData().material);
 	sprite->SetSrvHandle(textureManager_->GetTextureSrvHandleGPU());
 
 	// 音声再生
-	audio->SoundPlayWave(audio->GetXAudio2().Get(), audio->GetSound());
+	//audio->SoundPlayWave(audio->GetXAudio2().Get(), audio->GetSound());
 
 	//int count = 0;
 
@@ -83,7 +83,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int) {
 		// 三角形
 		model->Update();
 
-		sprite->Update();
+		//sprite->Update();
 
 		// ImGui
 		ImGui::SliderFloat3("Color", &model->GetColor().color.x, 0.0f, 1.0f);
@@ -92,10 +92,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int) {
 		ImGui::SliderFloat3("Translate", &model->GetTransform().translate.x, -5.0f, 5.0f);
 		ImGui::Checkbox("useMonsterBall", &model->GetUseMonsterBallRef());
 		ImGui::Text("useMonsterBall_: %s", model->GetUseMonsterBallRef() ? "true" : "false"); // 変更確認用
-		ImGui::SliderFloat3("spriteTranslate", &sprite->GetTransform().translate.x, -5.0f, 5.0f);
-		ImGui::DragFloat2("UVTranslate", &sprite->GetUVTransform().translate.x, 0.01f, -10.0f, 10.0f);
-		ImGui::DragFloat2("UVScale", &sprite->GetUVTransform().scale.x, 0.01f, -10.0f, 10.0f);
-		ImGui::SliderAngle("UVRotate", &sprite->GetUVTransform().rotate.z);
+		//ImGui::SliderFloat3("spriteTranslate", &sprite->GetTransform().translate.x, -5.0f, 5.0f);
+		//ImGui::DragFloat2("UVTranslate", &sprite->GetUVTransform().translate.x, 0.01f, -10.0f, 10.0f);
+		//ImGui::DragFloat2("UVScale", &sprite->GetUVTransform().scale.x, 0.01f, -10.0f, 10.0f);
+		//ImGui::SliderAngle("UVRotate", &sprite->GetUVTransform().rotate.z);
 
 		// 描画開始
 		dxCommon->BeginFrame();
@@ -110,7 +110,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int) {
 		model->Draw(dxCommon->GetCommandList());
 
 		// Sprite描画
-		sprite->Draw(dxCommon->GetCommandList());
+		//sprite->Draw(dxCommon->GetCommandList());
 
 		// ImGuiの内部コマンドを生成する
 		imGuiManager_->Render(dxCommon->GetCommandList());

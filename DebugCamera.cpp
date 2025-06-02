@@ -1,93 +1,96 @@
 #include "DebugCamera.h"
 #include "MathUtility.h"
 #include <numbers>
-#include <algorithm>
+void DebugCamera::Initialize() {
+	orientation_ = MathUtility::MakeIdentity4x4(); 
+	translation_ = {0.0f, 0.0f, -50.0f};           
+	pivot_ = {0.0f, 0.0f, 0.0f};                  
 
-void DebugCamera::Initialize(Matrix4x4 cameraMatrix) { 
-	rotation_ = {0, 0, 0};
-	translation_ = {0, 0, -50};
-	viewMatrix_ = MathUtility::Inverse(cameraMatrix);
-	projectionMatrix_ = MathUtility::MakePerspectiveFovMatrix(0.45f, (1280.0f / 720.0f), 0.1f, 100.0f);
+	UpdateViewMatrix();
+}
+
+void DebugCamera::SetPivot(const Vector3& p) {
+	Vector3 offset = MathUtility::Subtract(translation_, pivot_);
+	pivot_ = p;
+	translation_ = MathUtility::Add(pivot_, offset);
 }
 
 void DebugCamera::Update(const DirectInput& input) {
-	// 左クリックでカメラ回転開始
+	// フリー回転
 	if (input.IsMouseButtonDown(1)) {
+		float dx = input.GetMouseDeltaX() * 0.001f; 
+		float dy = input.GetMouseDeltaY() * 0.001f;
+
+		Matrix4x4 yaw = MathUtility::MakeYawRotateMatrix(dx);
+		Matrix4x4 pitch = MathUtility::MakePitchRotateMatrix(dy);
+
+		orientation_ = MathUtility::Multiply(pitch, MathUtility::Multiply(yaw, orientation_));
+		orientation_ = MathUtility::Orthonormalize(orientation_);
+	}
+
+	// ピボット回転
+	if (input.IsMouseButtonDown(2)) {
 		float dx = input.GetMouseDeltaX() * 0.001f;
 		float dy = input.GetMouseDeltaY() * 0.001f;
 
-		rotation_.x += dy;
-		rotation_.y += dx;
+		Matrix4x4 yaw = MathUtility::MakeYawRotateMatrix(dx);
+		Matrix4x4 pitch = MathUtility::MakePitchRotateMatrix(dy);
+		Matrix4x4 rot = MathUtility::Multiply(pitch, yaw);
+
+		Vector3 offset = MathUtility::Subtract(translation_, pivot_);
+		offset = MathUtility::MultiplyVector(offset, rot);
+		translation_ = MathUtility::Add(pivot_, offset);
+
+		orientation_ = MathUtility::Multiply(rot, orientation_);
+		orientation_ = MathUtility::Orthonormalize(orientation_);
 	}
 
-	// 前後移動
-	if (input.IsKeyDown(DIK_W)) {
-		const float speed = 0.1f;
+	auto MoveLocal = [&](const Vector3& local) {
+		Vector3 world = MathUtility::MultiplyVector(local, orientation_);
+		translation_ = MathUtility::Add(translation_, world);
+		pivot_ = MathUtility::Add(pivot_, world);
+	};
 
-		// カメラ移動ベクトル
-		Vector3 move = {0, 0, speed};
+	const float speed = 0.1f;
 
-		// 移動ベクトルを角度分だけ回転させる
-		Matrix4x4 rotY = MathUtility::MakeYawRotateMatrix(rotation_.x);
-		Matrix4x4 rotX = MathUtility::MakePitchRotateMatrix(rotation_.y);
-		Matrix4x4 rotate = MathUtility::Multiply(rotY, rotX);
-		Vector3 rotatedMove = MathUtility::MultiplyVector(move, rotate);
+	if (!input.IsKeyDown(DIK_LSHIFT)) {
+		// 前移動
+		if (input.IsKeyDown(DIK_W)) {
+			MoveLocal({0.0f, 0.0f, speed});
+		}
 
-		// 移動ベクトル分だけ座標を加算する
-		translation_ = MathUtility::Add(translation_, rotatedMove);
+		// 後ろ移動
+		if (input.IsKeyDown(DIK_S)) {
+			MoveLocal({0.0f, 0.0f, -speed});
+		}
 	}
 
-	if (input.IsKeyDown(DIK_S)) {
-		const float speed = -0.1f;
+	if (input.IsKeyDown(DIK_LSHIFT)) {
+		// 右移動
+		if (input.IsKeyDown(DIK_D)) {
+			MoveLocal({speed, 0.0f, 0.0f});
+		}
 
-		// カメラ移動ベクトル
-		Vector3 move = {0, 0, speed};
+		// 左移動
+		if (input.IsKeyDown(DIK_A)) {
+			MoveLocal({-speed, 0.0f, 0.0f});
+		}
 
-		// 移動ベクトルを角度分だけ回転させる
-		Matrix4x4 rotY = MathUtility::MakeYawRotateMatrix(rotation_.x);
-		Matrix4x4 rotX = MathUtility::MakePitchRotateMatrix(rotation_.y);
-		Matrix4x4 rotate = MathUtility::Multiply(rotY, rotX);
-		Vector3 rotatedMove = MathUtility::MultiplyVector(move, rotate);
+		// 上移動
+		if (input.IsKeyDown(DIK_W)) {
+			MoveLocal({0.0f, speed, 0.0f});
+		}
 
-		// 移動ベクトル分だけ座標を加算する
-		translation_ = MathUtility::Add(translation_, rotatedMove);
+		// 下移動
+		if (input.IsKeyDown(DIK_S)) {
+			MoveLocal({0.0f, -speed, 0.0f});
+		}
 	}
 
-	// 左右移動
-	if (input.IsKeyDown(DIK_D)) {
-		const float speed = 0.1f;
+	UpdateViewMatrix();
+}
 
-		// カメラ移動ベクトル
-		Vector3 move = {speed, 0, 0};
-
-		// 移動ベクトルを角度分だけ回転させる
-		Matrix4x4 rotY = MathUtility::MakeYawRotateMatrix(rotation_.x);
-		Matrix4x4 rotX = MathUtility::MakePitchRotateMatrix(rotation_.y);
-		Matrix4x4 rotate = MathUtility::Multiply(rotY, rotX);
-		Vector3 rotatedMove = MathUtility::MultiplyVector(move, rotate);
-
-		// 移動ベクトル分だけ座標を加算する
-		translation_ = MathUtility::Add(translation_, rotatedMove);
-	}
-
-	if (input.IsKeyDown(DIK_A)) {
-		const float speed = -0.1f;
-
-		// カメラ移動ベクトル
-		Vector3 move = {speed, 0, 0};
-
-		// 移動ベクトルを角度分だけ回転させる
-		Matrix4x4 rotY = MathUtility::MakeYawRotateMatrix(rotation_.x);
-		Matrix4x4 rotX = MathUtility::MakePitchRotateMatrix(rotation_.y);
-		Matrix4x4 rotate = MathUtility::Multiply(rotY, rotX);
-		Vector3 rotatedMove = MathUtility::MultiplyVector(move, rotate);
-
-		// 移動ベクトル分だけ座標を加算する
-		translation_ = MathUtility::Add(translation_, rotatedMove);
-	}
-
-	Matrix4x4 rotateMatrix = MathUtility::Multiply(MathUtility::MakePitchRotateMatrix(rotation_.x), MathUtility::MakeYawRotateMatrix(rotation_.y));
-	Matrix4x4 translateMatrix = MathUtility::MakeTranslateMatrix(translation_);
-	Matrix4x4 worldMatrix = MathUtility::Multiply(rotateMatrix, translateMatrix);
-	viewMatrix_ = MathUtility::Inverse(worldMatrix);
+void DebugCamera::UpdateViewMatrix() {
+	Matrix4x4 world = MathUtility::Multiply(orientation_, MathUtility::MakeTranslateMatrix(translation_));
+	viewMatrix_ = MathUtility::Inverse(world);
 }

@@ -382,3 +382,46 @@ Matrix4x4 MathUtility::MakeViewPortMatrix(float left, float top, float width, fl
 	result.m[3][3] = 1.0f;
 	return result;
 }
+
+Vector3 MathUtility::MultiplyVector(const Vector3& v, const Matrix4x4& m) {
+	Vector3 result;
+
+	result.x = v.x * m.m[0][0] + v.y * m.m[1][0] + v.z * m.m[2][0] + m.m[3][0];
+	result.y = v.x * m.m[0][1] + v.y * m.m[1][1] + v.z * m.m[2][1] + m.m[3][1];
+	result.z = v.x * m.m[0][2] + v.y * m.m[1][2] + v.z * m.m[2][2] + m.m[3][2];
+
+	return result;
+}
+
+Vector3 MathUtility::Scale(const Vector3& v, float s) { return {v.x * s, v.y * s, v.z * s}; }
+
+Matrix4x4 MathUtility::Orthonormalize(const Matrix4x4& m) {
+	// 元の列ベクトルを取得
+	Vector3 x = {m.m[0][0], m.m[1][0], m.m[2][0]}; // right
+	Vector3 y = {m.m[0][1], m.m[1][1], m.m[2][1]}; // up
+	Vector3 z = {m.m[0][2], m.m[1][2], m.m[2][2]}; // forward
+
+	// Gram-Schmidt
+	z = Normalize(z);
+	x = Normalize(Subtract(x, Scale(z, Dot(x, z))));
+	y = Cross(z, x); // yはxとzの外積により自動的に直交＆正規化される
+
+	Matrix4x4 result = m;
+	// 再構成
+	result.m[0][0] = x.x;
+	result.m[1][0] = x.y;
+	result.m[2][0] = x.z;
+	result.m[0][1] = y.x;
+	result.m[1][1] = y.y;
+	result.m[2][1] = y.z;
+	result.m[0][2] = z.x;
+	result.m[1][2] = z.y;
+	result.m[2][2] = z.z;
+	// 位置成分（第4列）は元のまま維持
+	result.m[3][0] = 0.0f;
+	result.m[3][1] = 0.0f;
+	result.m[3][2] = 0.0f;
+	result.m[3][3] = 1.0f;
+
+	return result;
+}

@@ -161,6 +161,12 @@ public:
 	/// <returns>スクリーン座標系</returns>
 	static Matrix4x4 MakeViewPortMatrix(float left, float top, float width, float height, float minD, float maxD);
 
+	static Vector3 MultiplyVector(const Vector3& v, const Matrix4x4& m);
+
+	static Vector3 Scale(const Vector3& v, float s);
+
+	static Matrix4x4 Orthonormalize(const Matrix4x4& m);
+
 public:
 	static constexpr float pi_ = static_cast<float>(std::numbers::pi);
 };
