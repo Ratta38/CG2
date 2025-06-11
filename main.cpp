@@ -86,12 +86,13 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int) {
 		//sprite->Update();
 
 		// ImGui
-		ImGui::SliderFloat3("Color", &model->GetColor().color.x, 0.0f, 1.0f);
+		ImGui::ColorEdit4("Color", &model->GetColor().color.x);
 		ImGui::SliderFloat3("Scale", &model->GetTransform().scale.x, 0.0f, 5.0f);
 		ImGui::SliderFloat3("Rotate", &model->GetTransform().rotate.x, 0.0f, 5.0f);
 		ImGui::SliderFloat3("Translate", &model->GetTransform().translate.x, -5.0f, 5.0f);
 		ImGui::Checkbox("useMonsterBall", &model->GetUseMonsterBallRef());
 		ImGui::Text("useMonsterBall_: %s", model->GetUseMonsterBallRef() ? "true" : "false"); // 変更確認用
+		ImGui::DragFloat("intensity", &model->GetIntensity(), 0.01f);
 		//ImGui::SliderFloat3("spriteTranslate", &sprite->GetTransform().translate.x, -5.0f, 5.0f);
 		//ImGui::DragFloat2("UVTranslate", &sprite->GetUVTransform().translate.x, 0.01f, -10.0f, 10.0f);
 		//ImGui::DragFloat2("UVScale", &sprite->GetUVTransform().scale.x, 0.01f, -10.0f, 10.0f);

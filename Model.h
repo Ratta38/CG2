@@ -29,6 +29,7 @@ public:
 	D3D12_GPU_DESCRIPTOR_HANDLE GetSrvHandle() { return srvHandle_; }
 	ModelData& GetModelData() { return modelData_; }
 	Matrix4x4 GetCameraMatrix() { return cameraMatrix_; }
+	float& GetIntensity() { return directionalLight_.intensity; }
 
 	void SetRootSignature(Microsoft::WRL::ComPtr<ID3D12RootSignature> rs);
 	void SetPipelineState(Microsoft::WRL::ComPtr<ID3D12PipelineState> pso);

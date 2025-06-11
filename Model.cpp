@@ -69,7 +69,7 @@ void Model::Initialize(ComPtr<ID3D12Device> device, const IMeshGenerator& meshGe
 	materialResource_->Map(0, nullptr, reinterpret_cast<void**>(&materialData_));
 	// 三角形の色
 	material_.color = {1.0f, 1.0f, 1.0f, 1.0f};
-	material_.enableLighting = false;
+	material_.enableLighting = true;
 	// uvTransformなどのデータを設定
 	material_.uvTransform = MathUtility::MakeIdentity4x4();
 	// 今回は赤を書き込んでみる
