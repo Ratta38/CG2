@@ -29,7 +29,7 @@ void Model::Initialize(ComPtr<ID3D12Device> device, const IMeshGenerator& meshGe
 	indexCount_ = static_cast<uint32_t>(meshData.indices.size());
 
 	// モデル読み込み
-	modelData_ = LoadObjFile("resources", "plane.obj");
+	modelData_ = LoadObjFile("resources", "fence.obj");
 	// 頂点リソースの作成
 	vertexResource_ = CreateBufferResource(device, sizeof(VertexData) * modelData_.vertices.size());
 	// リソースの先頭のアドレスから使う
