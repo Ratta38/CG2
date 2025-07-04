@@ -59,7 +59,7 @@ void Model::Initialize(ComPtr<ID3D12Device> device, const IMeshGenerator& meshGe
 	// インデックスデータの書き込み
 	uint32_t* indexData = nullptr;
 	indexResource_->Map(0, nullptr, reinterpret_cast<void**>(&indexData));
-	std::memcpy(indexData, meshData.indices.data(), sizeof(uint32_t) * meshData.indices.size());
+	std::memcpy(indexData, modelData_.vertices.data(), sizeof(uint32_t) * modelData_.vertices.size());
 	indexResource_->Unmap(0, nullptr);
 
 	// マテリアル用のリソースを作る。今回はcolor1つ分のサイズを用意する
@@ -72,6 +72,8 @@ void Model::Initialize(ComPtr<ID3D12Device> device, const IMeshGenerator& meshGe
 	material_.enableLighting = true;
 	// uvTransformなどのデータを設定
 	material_.uvTransform = MathUtility::MakeIdentity4x4();
+	// 反射強度
+	material_.shininess = 1.0f;
 	// 今回は赤を書き込んでみる
 	*materialData_ = material_;
 	materialResource_->Unmap(0, nullptr);
@@ -92,7 +94,7 @@ void Model::Initialize(ComPtr<ID3D12Device> device, const IMeshGenerator& meshGe
 	directionalLightResource_->Map(0, nullptr, reinterpret_cast<void**>(&directionalLightData_));
 	directionalLight_.color = {1.0f, 1.0f, 1.0f, 1.0f};
 	directionalLight_.direction = {0.0f, -1.0f, 0.0f};
-	directionalLight_.intensity = 1.0f;
+	directionalLight_.intensity = 0.0f;
 	// Vector3 → XMVECTOR 変換
 	XMVECTOR dirVec = XMVectorSet(
 	    directionalLight_.direction.x, directionalLight_.direction.y, directionalLight_.direction.z,
@@ -104,6 +106,29 @@ void Model::Initialize(ComPtr<ID3D12Device> device, const IMeshGenerator& meshGe
 	XMStoreFloat3(reinterpret_cast<XMFLOAT3*>(&directionalLight_.direction), dirVec);
 	*directionalLightData_ = directionalLight_;
 	directionalLightResource_->Unmap(0, nullptr);
+
+	cameraForGPUResource_ = CreateBufferResource(device, sizeof(CameraForGPU));
+	cameraForGPUData_ = nullptr;
+	cameraForGPUResource_->Map(0, nullptr, reinterpret_cast<void**>(&cameraForGPUData_));
+	cameraForGPU_ = {0.0f, 0.0f, -10.0f};
+	cameraForGPUResource_->Unmap(0, nullptr);
+
+	fogParamResource_ = CreateBufferResource(device, sizeof(FogParam));
+	fogParamData_ = nullptr;
+	fogParamResource_->Map(0, nullptr, reinterpret_cast<void**>(&fogParamData_));
+	fogParam_ = {};
+	fogParam_.fogCenter = {0.0f, 0.0f, 0.0f};
+	fogParam_.fogColor = {1.0f, 1.0f, 1.0f};
+	fogParam_.fogIntensity = 0.5f;
+	fogParam_.radius = 20.0f;
+	fogParamResource_->Unmap(0, nullptr);
+
+	timeParamResource_ = CreateBufferResource(device, sizeof(TimeParam));
+	timeParamData_ = nullptr;
+	timeParamResource_->Map(0, nullptr, reinterpret_cast<void**>(&timeParamData_));
+	timeParam_ = {};
+	timeParam_.time = 1.0f / 60.0f;
+	timeParamResource_->Unmap(0, nullptr);
 
 	transform_ = {
 	    {1.0f, 1.0f, 1.0f},
@@ -135,6 +160,13 @@ void Model::Update() {
 	// 三角形 回転
 	//transform_.rotate.y += 0.01f;
 
+	// fogの揺れ
+	float elapsedTime = 1.0f / 60.0f;
+	static float totalTime = 0.0f;
+	totalTime += elapsedTime;
+
+	timeParam_.time = totalTime;
+
 	// 座標変換
 	worldMatrix_ = MathUtility::MakeAffineMatrix(transform_.scale, transform_.rotate, transform_.translate);
 	//cameraMatrix_ = MathUtility::MakeAffineMatrix(cameraTransform_.scale, cameraTransform_.rotate, cameraTransform_.translate);
@@ -151,6 +183,8 @@ void Model::Update() {
 	*transformMatrixData_ = {worldViewProjectionMatrix, worldMatrix_};
 	*materialData_ = material_; // 色の更新
 	*directionalLightData_ = directionalLight_;
+	*fogParamData_ = fogParam_;
+	*timeParamData_ = timeParam_;
 }
 
 void Model::Draw(ComPtr<ID3D12GraphicsCommandList> commandList) {
@@ -169,6 +203,12 @@ void Model::Draw(ComPtr<ID3D12GraphicsCommandList> commandList) {
 	commandList->SetGraphicsRootDescriptorTable(2, useMonsterBall_ ? srvHandle2_ : srvHandle_);
 	// ライティングCBufferの場所を指定
 	commandList->SetGraphicsRootConstantBufferView(3, directionalLightResource_->GetGPUVirtualAddress());
+	// CameraForGPUCBufferの場所を指定
+	commandList->SetGraphicsRootConstantBufferView(4, cameraForGPUResource_->GetGPUVirtualAddress());
+	// FogParamCBufferの場所を指定
+	commandList->SetGraphicsRootConstantBufferView(5, fogParamResource_->GetGPUVirtualAddress());
+	// TimeParamCBufferの場所を指定
+	commandList->SetGraphicsRootConstantBufferView(6, timeParamResource_->GetGPUVirtualAddress());
 	// 描画!(DrawCall/ドローコール)。
 	commandList->DrawInstanced(UINT(modelData_.vertices.size()), 1, 0, 0);
 	//commandList->DrawIndexedInstanced(indexCount_, 1, 0, 0, 0);

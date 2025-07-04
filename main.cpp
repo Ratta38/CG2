@@ -93,6 +93,11 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int) {
 		ImGui::Checkbox("useMonsterBall", &model->GetUseMonsterBallRef());
 		ImGui::Text("useMonsterBall_: %s", model->GetUseMonsterBallRef() ? "true" : "false"); // 変更確認用
 		ImGui::DragFloat("intensity", &model->GetIntensity(), 0.01f);
+		ImGui::DragFloat3("lightDirection", &model->GetLightDirection().x, 0.01f);
+		ImGui::DragFloat3("fogCenter", &model->GetFogParam().fogCenter.x, 0.01f);
+		ImGui::DragFloat3("fogColor", &model->GetFogParam().fogColor.x, 0.01f);
+		ImGui::SliderFloat("radius", &model->GetFogParam().radius, 0.0f, 50.0f);
+		ImGui::SliderFloat("fogIntensity", &model->GetFogParam().fogIntensity, 0.0f, 1.0f);
 		//ImGui::SliderFloat3("spriteTranslate", &sprite->GetTransform().translate.x, -5.0f, 5.0f);
 		//ImGui::DragFloat2("UVTranslate", &sprite->GetUVTransform().translate.x, 0.01f, -10.0f, 10.0f);
 		//ImGui::DragFloat2("UVScale", &sprite->GetUVTransform().scale.x, 0.01f, -10.0f, 10.0f);

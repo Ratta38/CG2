@@ -9,6 +9,9 @@
 #include "MeshData.h"
 #include "ModelData.h"
 #include "MaterialData.h"
+#include "CameraForGPU.h"
+#include "FogParam.h"
+#include "TimeParam.h"
 #include <d3d12.h>
 #include <memory>
 #include <wrl.h>
@@ -30,6 +33,8 @@ public:
 	ModelData& GetModelData() { return modelData_; }
 	Matrix4x4 GetCameraMatrix() { return cameraMatrix_; }
 	float& GetIntensity() { return directionalLight_.intensity; }
+	Vector3& GetLightDirection() { return directionalLight_.direction; }
+	FogParam& GetFogParam() { return fogParam_; }
 
 	void SetRootSignature(Microsoft::WRL::ComPtr<ID3D12RootSignature> rs);
 	void SetPipelineState(Microsoft::WRL::ComPtr<ID3D12PipelineState> pso);
@@ -52,6 +57,9 @@ private:
 	Microsoft::WRL::ComPtr<ID3D12Resource> materialResource_;
 	Microsoft::WRL::ComPtr<ID3D12Resource> wvpResource_;
 	Microsoft::WRL::ComPtr<ID3D12Resource> directionalLightResource_;
+	Microsoft::WRL::ComPtr<ID3D12Resource> cameraForGPUResource_;
+	Microsoft::WRL::ComPtr<ID3D12Resource> fogParamResource_;
+	Microsoft::WRL::ComPtr<ID3D12Resource> timeParamResource_;
 	Transform transform_;
 	Transform cameraTransform_;
 	Matrix4x4 cameraMatrix_;
@@ -61,6 +69,12 @@ private:
 	TransformationMatrix* transformMatrixData_;
 	Material material_ = {};
 	Material* materialData_;
+	CameraForGPU cameraForGPU_;
+	CameraForGPU* cameraForGPUData_;
+	FogParam fogParam_;
+	FogParam* fogParamData_;
+	TimeParam timeParam_;
+	TimeParam* timeParamData_;
 
 	DirectionalLight* directionalLightData_;
 	DirectionalLight directionalLight_;

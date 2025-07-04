@@ -265,8 +265,8 @@ void DirectXCommon::CreateRootSignature() {
 	descriptorRange[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;                              // SRVを使う
 	descriptorRange[0].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND; // Offsetを自動計算
 
-	// RootParameter作成。複数設定できるので配列。今回は結果1つだけなので長さ1の配列
-	D3D12_ROOT_PARAMETER rootParameters[4] = {};
+	// RootParameter作成。複数設定できるので配列。
+	D3D12_ROOT_PARAMETER rootParameters[7] = {};
 	rootParameters[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;                   // CBVを使う
 	rootParameters[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;                // PixelShaderで使う
 	rootParameters[0].Descriptor.ShaderRegister = 0;                                   // レジスタ番号0とバインド
@@ -280,6 +280,15 @@ void DirectXCommon::CreateRootSignature() {
 	rootParameters[3].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;                   // CBVを使う
 	rootParameters[3].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;                // PixelShaderで使う
 	rootParameters[3].Descriptor.ShaderRegister = 1;                                   // レジスタ番号1を使う
+	rootParameters[4].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;                   // CBVを使う
+	rootParameters[4].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;                // PixelShaderで使う
+	rootParameters[4].Descriptor.ShaderRegister = 2;                                   // レジスタ番号2を使う
+	rootParameters[5].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;                   // CBVを使う
+	rootParameters[5].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;                // PixelShaderで使う
+	rootParameters[5].Descriptor.ShaderRegister = 3;                                   // レジスタ番号3を使う
+	rootParameters[6].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;                   // CBVを使う
+	rootParameters[6].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;                // PixelShaderで使う
+	rootParameters[6].Descriptor.ShaderRegister = 4;                                   // レジスタ番号4を使う
 
 	D3D12_STATIC_SAMPLER_DESC staticSamplers[1] = {};
 	staticSamplers[0].Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;   // バイリニアフィルタ

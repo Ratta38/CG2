@@ -128,6 +128,7 @@ copy "$(windowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="CameraForGPU.h" />
     <ClInclude Include="D3DResourceLeakChecker.h" />
     <ClInclude Include="DebugCamera.h" />
     <ClInclude Include="DirectInput.h" />
@@ -141,6 +142,7 @@ copy "$(windowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="externals\imgui\imstb_rectpack.h" />
     <ClInclude Include="externals\imgui\imstb_textedit.h" />
     <ClInclude Include="externals\imgui\imstb_truetype.h" />
+    <ClInclude Include="FogParam.h" />
     <ClInclude Include="IMeshGenerator.h" />
     <ClInclude Include="ImGuiManager.h" />
     <ClInclude Include="Material.h" />
@@ -156,6 +158,7 @@ copy "$(windowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="Sprite.h" />
     <ClInclude Include="StringUtility.h" />
     <ClInclude Include="TextureManager.h" />
+    <ClInclude Include="TimeParam.h" />
     <ClInclude Include="Transform.h" />
     <ClInclude Include="TransformationMatrix.h" />
     <ClInclude Include="Vector2.h" />
